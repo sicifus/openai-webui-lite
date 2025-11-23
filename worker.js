@@ -1307,7 +1307,6 @@ function getManifestContent(title) {
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#605bec",
-  "orientation": "any",
   "icons": [
     {
       "src": "favicon.svg",
@@ -1339,7 +1338,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 
     <!-- Web App Manifest -->
-    <link rel="manifest" href="site.webmanifest?v=1" />
+    <link rel="manifest" href="site.webmanifest?v=2" />
 
     <!-- iOS Safari -->
     <link rel="apple-touch-icon" href="favicon.svg" />
