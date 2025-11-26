@@ -92,7 +92,7 @@
 | **OpenAI** | `https://api.openai.com` | `sk-proj-xxx` | `gpt-4o,gpt-4o-mini,o1-preview` | 推荐 Deno 部署 |
 | **Gemini** | `https://generativelanguage.googleapis.com` | `AIzaSyxxx` | `gemini-2.5-pro,gemini-2.5-flash` | 推荐 Deno 部署 |
 | **心流 AI** | `https://apis.iflow.cn` | `sk-xxx` | `qwen3-max,deepseek-v3` | 国产模型聚合，Cloudflare 部署即可 |
-| **OpenRouter** | `https://openrouter.ai/api` | `sk-or-xxx` | `anthropic/claude-4.5-sonnet` | 聚合平台 |
+| **OpenRouter** | `https://openrouter.ai/api` | `sk-or-xxx` | `anthropic/claude-sonnet-4.5` | 聚合平台 |
 | **DeepSeek** | `https://api.deepseek.com` | `sk-xxx` | `deepseek-chat,deepseek-coder` | 国产之光 |
 
 > **💡 资源推荐**：如果您需要免费且稳定的国产大模型 API（如 Qwen, DeepSeek），推荐尝试 [心流 AI](https://iflow.cn/?invite_code=vNEjKzbSTbhgWooCw15Bsw%3D%3D&open=setting)，官方宣称 API 永久免费（但 API Key 有效期为7天，过期后需手动重置新 Key），支持 Cloudflare Workers 稳定调用。
