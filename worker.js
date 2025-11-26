@@ -2928,7 +2928,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 ></div>
               </div>
             </div>
-            <div v-if="shouldShowLoading class="loading">
+            <div v-if="shouldShowLoading" class="loading">
               <div class="spinner"></div>
               <span>AI 正在思考中...</span>
             </div>
