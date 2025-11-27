@@ -3579,11 +3579,11 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   label = label
                     .replace(' Vl ', ' VL ')
                     .replace('Deepseek', 'DeepSeek')
+                    .replace('Maxthinking', 'MaxThinking')
                     .replace('Glm', 'GLM')
                     .replace('Gpt', 'GPT')
                     .replace(' Cc', ' CC')
                     .replace('Or/', 'OR/')
-                    .replace('Ar/', 'AR/')
                     .replace('Cs/', 'CS/')
                     .replace('Iflow/', 'iFlow/')
                     .replace('Gcli', 'gCLI')
