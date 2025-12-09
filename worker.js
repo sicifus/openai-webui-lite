@@ -4737,7 +4737,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                             regThinkStart,
                             '<blockquote style="font-size: 0.75em">'
                           )
-                          .replace(regThinkEnd, '</blockquote>');
+                          .replace(regThinkEnd, '</blockquote>\\n');
                         if (delta) {
                           const shouldScroll = !this.streamingContent;
                           this.streamingContent += delta;
