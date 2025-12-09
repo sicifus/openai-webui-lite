@@ -3413,6 +3413,31 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             smartLists: true, // 使用更智能的列表行为
             smartypants: false // 不使用智能标点符号
           });
+          marked.use({
+            extensions: [
+              {
+                name: 'strongWithCJK',
+                level: 'inline',
+                start(src) {
+                  return src.match(/\\*\\*/)?.index;
+                },
+                tokenizer(src) {
+                  const rule = /^\\*\\*([^\\*]+?)\\*\\*/;
+                  const match = rule.exec(src);
+                  if (match) {
+                    return {
+                      type: 'strongWithCJK',
+                      raw: match[0],
+                      text: match[1]
+                    };
+                  }
+                },
+                renderer(token) {
+                  return `<strong>${token.text}</strong>`;
+                }
+              }
+            ]
+          });
 
           await this.loadData();
           if (this.sessions.length === 0) {
