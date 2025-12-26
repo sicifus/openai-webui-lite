@@ -4192,6 +4192,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           copyToClipboard(text) {
+            text = text.replace(/\\[([0-9]+)\\]\\(javascript:void\\(0\\)\\)/g, '$1');
             navigator.clipboard
               .writeText(text)
               .then(() => {
