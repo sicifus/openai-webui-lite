@@ -5070,7 +5070,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               var newSession = {
                 id: Date.now().toString(),
                 title: '🔀 ' + (session.title || '新会话'),
-                summary: session.summary || '',
+                summary: session.summary ? '🔀 ' + session.summary : '',
                 role: session.role || '',
                 draft: '',
                 messages: forkedMessages
