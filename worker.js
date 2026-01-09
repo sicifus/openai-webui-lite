@@ -5013,28 +5013,12 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               var msg = session.messages[msgIndex];
               if (!msg || msg.type !== 'bot') return;
 
-              // 找到前一条用户消息
-              var prevUserMsg = null;
-              for (var i = msgIndex - 1; i >= 0; i--) {
-                if (session.messages[i].type === 'user') {
-                  prevUserMsg = session.messages[i];
-                  break;
-                }
-              }
-              if (!prevUserMsg) return;
-
-              // 恢复用户消息到输入框
-              this.messageInput = prevUserMsg.content || '';
-              this.uploadedImages = (prevUserMsg.images || [])
-                .filter(i => i && i !== 'INVALID')
-                .map(i => ({ url: i }));
-
               // 删除这个回答（保留之前的用户问题）
               session.messages = session.messages.slice(0, msgIndex);
               this.saveData();
 
               // 重新发送消息
-              this.sendMessage();
+              this.retryCurrentQuestion();
             });
           },
 
