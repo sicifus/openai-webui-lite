@@ -3701,8 +3701,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               console.log(
                 '[Migration] Sessions migrated to new messages format'
               );
+              return sessions;
+            } else {
+              return false;
             }
-            return sessions;
           },
 
           async loadData() {
@@ -3726,9 +3728,16 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             if (savedSessions) {
               let parsed = JSON.parse(savedSessions);
               // 执行数据迁移
-              this.sessions = this.migrateSessionData(parsed);
-              // 迁移后保存
-              this.saveData();
+              const migratedSessions = this.migrateSessionData(parsed);
+              if (migratedSessions) {
+                this.sessions = migratedSessions;
+                // 迁移后保存
+                this.sleep(300).then(() => {
+                  this.saveData();
+                });
+              } else {
+                this.sessions = parsed;
+              }
             }
 
             // 加载当前会话ID
