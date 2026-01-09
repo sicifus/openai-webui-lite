@@ -1885,7 +1885,7 @@
             isLoading: false,
             isSentForAWhile: false,
             errorMessage: '',
-            selectedModel: 'gpt-5-mini',
+            selectedModel: '',
             availableModels: ['$MODELS_PLACEHOLDER$'],
             sessions: [],
             currentSessionId: null,
@@ -2100,7 +2100,16 @@
           streamingContent() {
             this.stickToBottom();
           },
-          selectedModel(newVal) {
+          selectedModel(newVal, oldVal) {
+            // 避免在初始化时触发保存（空值变为有效值时不保存）
+            if (!oldVal && newVal) {
+              // 首次从空值变为有效值，不触发保存（由 loadData 负责）
+              if (this.tomSelect && this.tomSelect.getValue() !== newVal) {
+                this.tomSelect.setValue(newVal, true);
+              }
+              return;
+            }
+            // 正常的模型切换，更新 TomSelect
             if (this.tomSelect && this.tomSelect.getValue() !== newVal) {
               this.tomSelect.setValue(newVal, true);
             }
@@ -2476,20 +2485,26 @@
               'openai_selected_model'
             );
             // 验证 savedModel 是否在可用模型列表中
-            let modelToUse = null;
+            let modelToUse = '';
+            // 优先级1: 使用保存的模型（如果在列表中）
             if (
               savedModel &&
-              this.availableModels.some(m => {
-                return m.value === savedModel;
-              })
+              this.availableModels.length > 0 &&
+              this.availableModels.some(m => m.value === savedModel)
             ) {
               modelToUse = savedModel;
-            } else if (
+            }
+            // 优先级2: 如果没有保存的模型或不在列表中，使用列表第一个
+            else if (
               this.availableModels.length > 0 &&
-              this.availableModels[0]
+              this.availableModels[0] &&
+              this.availableModels[0].value
             ) {
               modelToUse = this.availableModels[0].value;
-            } else {
+            }
+            // 优先级3: 完全没办法，使用硬编码兜底（但记录警告）
+            else {
+              console.warn('[Model] 模型列表未正确初始化，使用兜底值');
               modelToUse = 'gpt-4o-mini';
             }
             this.selectedModel = modelToUse;
