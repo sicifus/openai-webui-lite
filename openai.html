@@ -1540,6 +1540,14 @@
                         重新回答
                       </button>
                       <button
+                        v-if="canForkMessage(msgIndex)"
+                        class="copy-btn"
+                        title="从此处分叉创建新会话"
+                        @click="forkFromMessage(msgIndex)"
+                      >
+                        分叉
+                      </button>
+                      <button
                         class="copy-btn"
                         title="复制回答"
                         @click="copyToClipboard(msg.content)"
@@ -3246,6 +3254,17 @@
             return true;
           },
 
+          // 判断是否可以分叉该消息（只有非最新的bot消息可以分叉）
+          canForkMessage(msgIndex) {
+            if (this.isLoading || this.isStreaming) return false;
+            var session = this.currentSession;
+            if (!session || !session.messages) return false;
+            var msg = session.messages[msgIndex];
+            if (msg.type !== 'bot') return false;
+            // 不是最后一条bot消息才可以分叉
+            return !this.isLastBotMsg(msgIndex);
+          },
+
           // 获取bot消息应该显示的内容（处理流式回答的显示逻辑）
           getBotMessageContent(msg, msgIndex) {
             // 如果是最后一条bot消息 且 正在加载/流式传输 且 不是为新消息生成回复
@@ -3754,6 +3773,65 @@
 
               // 重新发送消息
               this.retryCurrentQuestion();
+            });
+          },
+
+          // 从指定消息分叉创建新会话
+          forkFromMessage(msgIndex) {
+            if (this.isLoading || this.isStreaming || this.isUploadingImage)
+              return;
+            var session = this.currentSession;
+            if (!session || !session.messages) return;
+            var msg = session.messages[msgIndex];
+            if (!msg || msg.type !== 'bot') return;
+
+            // 二次确认
+            this.showSwal({
+              title: '确认分叉会话',
+              text: '将从此消息往前的所有对话创建为新会话，是否继续？',
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '确定',
+              confirmButtonColor: '#3085d6',
+              cancelButtonText: '取消',
+              reverseButtons: true
+            }).then(result => {
+              if (!result.isConfirmed) return;
+
+              // 截取从开始到 msgIndex 的所有消息
+              var forkedMessages = session.messages.slice(0, msgIndex + 1);
+
+              // 创建新会话
+              var newSession = {
+                id: Date.now().toString(),
+                title: '🔀 ' + (session.title || '新会话'),
+                summary: session.summary || '',
+                role: session.role || '',
+                draft: '',
+                messages: forkedMessages
+              };
+
+              // 添加到会话列表
+              this.sessions.unshift(newSession);
+              // 切换到新会话
+              this.currentSessionId = newSession.id;
+              // 加载新会话的草稿
+              this.loadDraftFromCurrentSession();
+              this.saveData();
+
+              // 移动端创建新会话后隐藏侧边栏
+              if (this.isMobile) {
+                this.hideSidebar();
+              }
+
+              // 提示用户
+              this.showSwal({
+                title: '分叉成功',
+                text: '已创建新会话，包含 ' + forkedMessages.length + ' 条消息',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+              });
             });
           },
 
