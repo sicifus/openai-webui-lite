@@ -3749,6 +3749,12 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             const savedModel = await window.openaiDB.getItem(
               'openai_selected_model'
             );
+            console.log(savedModel);
+            console.log(
+              this.availableModels,
+              this.availableModels.length,
+              this.availableModels[0]
+            );
             // 验证 savedModel 是否在可用模型列表中
             let modelToUse = '';
             // 优先级1: 使用保存的模型（如果在列表中）
