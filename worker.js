@@ -1535,7 +1535,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             if (![200, 201, 204].includes(putResponse.status)) {
               return {
                 success: false,
-                error: '写入测试失败: HTTP ' + putResponse.status
+                error:
+                  '写入测试失败，请检查目录是否已创建: HTTP ' +
+                  putResponse.status
               };
             }
 
@@ -2052,6 +2054,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
       }
 
       .settings-section {
+        text-align: right;
+        margin-top: 6px;
         margin-bottom: 15px;
       }
 
@@ -2064,21 +2068,20 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      }
+
+      .settings-btn.mobile {
+        width: calc(100% - 54px);
       }
 
       .settings-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(168, 237, 234, 0.4);
-      }
-
-      .settings-btn:active {
-        transform: translateY(0);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
       }
 
       .api-key-input {
@@ -2951,7 +2954,11 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         >
           <!-- 设置按钮 -->
           <div class="settings-section">
-            <button class="settings-btn" @click="openSettingsModal()">
+            <button
+              class="settings-btn"
+              :class="{ mobile: isMobile }"
+              @click="openSettingsModal()"
+            >
               ⚙️ 设置
               <span v-if="!apiKey" style="color: #e74c3c; margin-left: 4px"
                 >(未配置)</span
@@ -3701,7 +3708,11 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   value="local"
                   style="margin-right: 8px"
                 />
-                <span style="font-size: 0.85em">📱 本地存储</span>
+                <span style="font-size: 0.85em">
+                  <span v-if="isMobile">📱</span>
+                  <span v-else>🖥️</span>
+                  <span> 本地存储</span>
+                </span>
               </label>
               <label
                 style="
@@ -3727,7 +3738,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               </label>
             </div>
             <p style="margin: 8px 0 0; font-size: 12px; color: #888">
-              本地存储：数据保存在浏览器中；远程存储：通过 WebDAV 同步到云端
+              <span>本地存储：数据保存在浏览器中；</span>
+              <br v-if="isMobile" />
+              <span>远程存储：通过 WebDAV 同步到云端</span>
             </p>
           </div>
 
@@ -4033,6 +4046,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         },
         async mounted() {
           this.initModels();
+          this.$nextTick(() => {
+            this.initTomSelect();
+          });
 
           // 加载WebDAV配置
           await window.openaiDB.loadWebDAVConfig();
@@ -4094,21 +4110,17 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 计算OpenAI DB总数据量
           const totalDataSize = await window.openaiDB.getTotalDataSize();
-          if (totalDataSize > 2) {
+          if (totalDataSize > 3) {
             this.showSwal({
               title: '数据量过大',
               text:
                 '当前存储的数据量为' +
                 totalDataSize.toFixed(2) +
-                ' MB，超过了 2MB，可能会影响性能。建议清理一些旧会话。',
+                ' MB，超过了 3MB，可能会影响性能。建议清理一些旧会话。',
               icon: 'warning',
               confirmButtonText: '&nbsp;知道了&nbsp;'
             });
           }
-
-          this.$nextTick(() => {
-            this.initTomSelect();
-          });
         },
 
         beforeUnmount() {
@@ -4308,9 +4320,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   });
                 }
 
-                var label = $('.label-api-key');
-                if (label) {
-                  label.addEventListener('dblclick', () => {
+                var title = $('.swal2-modal.swal2-show .swal2-title');
+                if (title) {
+                  title.addEventListener('dblclick', () => {
                     this.reloadPage();
                   });
                 }
@@ -4660,6 +4672,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                     .replace('Cs/', 'CS/')
                     .replace('Iflow/', 'iFlow/')
                     .replace('Gcli', 'gCLI')
+                    .replace('Cpa/', 'CPA/')
                     .replace('B4u/', 'B4U/')
                     .replace('Kfc/', 'KFC/')
                     .replace('/', ' / ');
@@ -4829,15 +4842,6 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             const savedCurrentId = await window.openaiDB.getItem(
               'openai_current_session'
             );
-            if (
-              savedCurrentId &&
-              this.sessions.find(s => s.id === savedCurrentId)
-            ) {
-              this.currentSessionId = savedCurrentId;
-            } else if (this.sessions.length > 0) {
-              this.currentSessionId = this.sessions[0].id;
-            }
-            this.autoFoldRolePrompt();
 
             // 加载选中的模型
             const savedModel = await window.openaiDB.getItem(
@@ -4894,6 +4898,17 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 this.sessions = parsed;
               }
             }
+
+            // 设置当前会话ID
+            if (
+              savedCurrentId &&
+              this.sessions.find(s => s.id === savedCurrentId)
+            ) {
+              this.currentSessionId = savedCurrentId;
+            } else if (this.sessions.length > 0) {
+              this.currentSessionId = this.sessions[0].id;
+            }
+            this.autoFoldRolePrompt();
 
             // 首次向用户询问 API Key
             if (!this.apiKey && this.isTotallyBlank) {
