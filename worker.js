@@ -1388,8 +1388,6 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
       if (isWechat && document.title) {
         document.title = '✨ ' + document.title;
       }
-      window.$ = selector => document.querySelector(selector);
-      window.$$ = selector => Array.from(document.querySelectorAll(selector));
       // IndexedDB 封装（支持WebDAV远程存储）
       class OpenaiDB {
         constructor() {
@@ -3728,6 +3726,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
     </div>
 
     <script>
+      const $ = selector => document.querySelector(selector);
+      const $$ = selector => Array.from(document.querySelectorAll(selector));
       const { createApp } = Vue;
 
       window.app = createApp({
