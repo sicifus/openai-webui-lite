@@ -4225,8 +4225,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   });
                 }
               },
-              preConfirm: () => {
-                const isValid = this.validateAndSaveSettings();
+              preConfirm: async () => {
+                const isValid = await this.validateAndSaveSettings();
                 if (isValid) {
                   this.isShowSettingsModal = false;
                 }
