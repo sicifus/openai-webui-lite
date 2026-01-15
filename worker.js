@@ -3683,7 +3683,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               <input
                 type="text"
                 id="webdavUrl"
-                placeholder="http://dav.test.cn/ (应以'/'结束)"
+                placeholder="http://dav.test.cn:3000"
                 style="
                   width: 100%;
                   padding: 8px 12px;
@@ -3766,7 +3766,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 "
               />
               <p style="margin: 4px 0 0; font-size: 11px; color: #888">
-                留空则使用默认路径 /openai-chat/
+                应以'/'结束，留空则使用默认路径 /openai-chat/
               </p>
             </div>
             <button
