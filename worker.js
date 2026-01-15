@@ -1706,7 +1706,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             // 设置加载状态
             if (window.app) window.app.isLoadingRemoteSessions = true;
             try {
-              var remoteData = await this.webdavGet('sessions.json');
+              var remoteData = await this.webdavGet('sessions.json?v=' + Date.now());
               if (remoteData !== null) {
                 return remoteData;
               }
