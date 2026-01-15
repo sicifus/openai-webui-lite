@@ -184,6 +184,7 @@
       // 全局实例
       window.openaiDB = new OpenaiDB();
     </script>
+    <!-- CSS -->
     <style>
       * {
         margin: 0;
@@ -716,7 +717,7 @@
       }
 
       /* 上传图片按钮 */
-      .upload-image-btn {
+      .upload-btn {
         position: absolute;
         left: 12px;
         top: 50%;
@@ -735,12 +736,12 @@
         padding: 0;
       }
 
-      .upload-image-btn:hover:not(:disabled) {
+      .upload-btn:hover:not(:disabled) {
         opacity: 1;
         transform: translateY(-50%) scale(1.1);
       }
 
-      .upload-image-btn:disabled {
+      .upload-btn:disabled {
         opacity: 0.3;
         cursor: not-allowed;
       }
@@ -767,6 +768,21 @@
         font-size: 12px;
         color: #333;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 文本文件标签样式 */
+      .image-tag.plaintext-tag {
+        cursor: pointer;
+        padding: 4px 8px;
+        background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      }
+
+      .image-tag.plaintext-tag:hover {
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+      }
+
+      .image-tag .plaintext-icon {
+        font-size: 18px;
       }
 
       .image-tag img {
@@ -1517,6 +1533,21 @@
                       }}
                     </a>
                   </div>
+                  <!-- 文本附件链接 -->
+                  <div
+                    v-if="msg.plaintexts && msg.plaintexts.length > 0"
+                    class="question-images"
+                  >
+                    <a
+                      v-for="(txt, txtIdx) in msg.plaintexts"
+                      :key="'txt-' + txtIdx"
+                      href="javascript:void(0)"
+                      title="点击预览内容"
+                      @click="previewPlaintext(txt)"
+                    >
+                      📄 {{ txt.name }}
+                    </a>
+                  </div>
                 </div>
                 <!-- AI回答 -->
                 <div
@@ -1627,14 +1658,37 @@
                 </button>
               </div>
             </div>
+            <!-- 上传的文本文件标签 -->
+            <div
+              v-if="uploadedPlaintexts.length > 0"
+              class="uploaded-images-tags"
+            >
+              <div
+                v-for="(txt, index) in uploadedPlaintexts"
+                :key="'txt-' + index"
+                class="image-tag plaintext-tag"
+                @click="previewPlaintext(txt)"
+                title="点击预览内容"
+              >
+                <span class="plaintext-icon">📄</span>
+                <span class="image-tag-text">{{ txt.name }}</span>
+                <button
+                  class="image-tag-remove"
+                  @click.stop="removePlaintext(index)"
+                  title="移除文件"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
             <div class="input-wrapper">
-              <!-- 上传图片按钮 -->
+              <!-- 上传按钮（图片或文本文件） -->
               <button
-                class="upload-image-btn"
-                @click="triggerImageUpload"
-                :disabled="!canInput || uploadedImages.length >= 3 || isUploadingImage"
-                :title="uploadedImages.length >= 3 ? '最多上传3张图片' : '上传图片'"
+                class="upload-btn"
+                @click="triggerUpload"
+                :disabled="!canInput || isUploadingImage"
+                title="上传图片或文本文件"
               >
                 📎
               </button>
@@ -1644,6 +1698,13 @@
                 accept="image/*"
                 style="display: none"
                 @change="handleImageSelect"
+              />
+              <input
+                type="file"
+                ref="plaintextInput"
+                :accept="getSupportedTextExtensions().join(',')"
+                style="display: none"
+                @change="handlePlaintextSelect"
               />
 
               <textarea
@@ -1908,6 +1969,7 @@
             streamingContent: '',
             abortController: null,
             uploadedImages: [], // 待发送的图片列表 [{ url: string, file: File }]
+            uploadedPlaintexts: [], // 待发送的文本文件列表 [{ name: string, content: string }]
             isUploadingImage: false,
             needSearch: false,
             searchRes: null,
@@ -1993,7 +2055,9 @@
           },
           canSend() {
             return (
-              (this.messageInput.trim() || this.uploadedImages.length > 0) &&
+              (this.messageInput.trim() ||
+                this.uploadedImages.length > 0 ||
+                this.uploadedPlaintexts.length > 0) &&
               this.selectedModel &&
               !this.isUploadingImage &&
               this.canInput
@@ -2720,11 +2784,316 @@
             this.updateGlobalRolePrompt();
           },
 
+          // 触发上传（图片或文本文件）
+          triggerUpload() {
+            this.showSwal({
+              title: '选择上传类型',
+              showCancelButton: true,
+              showDenyButton: true,
+              confirmButtonText: '📷 图片',
+              denyButtonText: '📄 文本文件',
+              cancelButtonText: '取消',
+              reverseButtons: false
+            }).then(result => {
+              if (result.isConfirmed) {
+                this.triggerImageUpload();
+              } else if (result.isDenied) {
+                this.triggerPlaintextUpload();
+              }
+            });
+          },
+
           // 触发图片上传
           triggerImageUpload() {
-            if (this.uploadedImages.length >= 3) return;
+            if (this.uploadedImages.length >= 3) {
+              this.showSwal({
+                title: '无法上传',
+                text: '最多只能上传3张图片',
+                icon: 'warning',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
             this.preheatImageUploadService();
             this.$refs.imageInput.click();
+          },
+
+          // 触发文本文件上传
+          triggerPlaintextUpload() {
+            if (this.uploadedPlaintexts.length >= 5) {
+              this.showSwal({
+                title: '无法上传',
+                text: '最多只能上传5个文本文件',
+                icon: 'warning',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
+            this.$refs.plaintextInput.click();
+          },
+
+          // 获取支持的文本文件后缀列表
+          getSupportedTextExtensions() {
+            return [
+              '.txt',
+              '.md',
+              '.markdown',
+              '.html',
+              '.htm',
+              '.xml',
+              '.json',
+              '.js',
+              '.jsx',
+              '.ts',
+              '.tsx',
+              '.vue',
+              '.svelte',
+              '.css',
+              '.scss',
+              '.sass',
+              '.less',
+              '.styl',
+              '.py',
+              '.pyw',
+              '.pyi',
+              '.rb',
+              '.php',
+              '.java',
+              '.kt',
+              '.kts',
+              '.c',
+              '.cpp',
+              '.cc',
+              '.cxx',
+              '.h',
+              '.hpp',
+              '.hxx',
+              '.cs',
+              '.go',
+              '.rs',
+              '.swift',
+              '.m',
+              '.mm',
+              '.sh',
+              '.bash',
+              '.zsh',
+              '.fish',
+              '.ps1',
+              '.bat',
+              '.cmd',
+              '.sql',
+              '.graphql',
+              '.gql',
+              '.yaml',
+              '.yml',
+              '.toml',
+              '.ini',
+              '.conf',
+              '.cfg',
+              '.env',
+              '.log',
+              '.csv',
+              '.tsv',
+              '.tex',
+              '.bib',
+              '.rst',
+              '.adoc',
+              '.org',
+              '.gitignore',
+              '.dockerignore',
+              '.editorconfig',
+              '.eslintrc',
+              '.prettierrc',
+              '.babelrc',
+              '.htaccess',
+              '.nginx',
+              '.conf',
+              '.r',
+              '.R',
+              '.rmd',
+              '.Rmd',
+              '.lua',
+              '.pl',
+              '.pm',
+              '.tcl',
+              '.awk',
+              '.sed',
+              '.vim',
+              '.vimrc',
+              '.emacs',
+              '.el',
+              '.proto',
+              '.thrift',
+              '.avsc',
+              '.tf',
+              '.tfvars',
+              '.hcl',
+              '.gradle',
+              '.properties',
+              '.pom',
+              '.cmake',
+              '.make',
+              '.makefile',
+              '.mk',
+              '.asm',
+              '.s',
+              '.nasm',
+              '.patch',
+              '.diff'
+            ];
+          },
+
+          // 处理文本文件选择
+          async handlePlaintextSelect(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            await this.processPlaintextFile(file);
+            event.target.value = ''; // 清空input,允许重复选择同一文件
+          },
+
+          // 处理文本文件（公共逻辑）
+          async processPlaintextFile(file) {
+            // 检查文件数量限制
+            if (this.uploadedPlaintexts.length >= 5) {
+              this.showSwal({
+                title: '无法上传',
+                text: '最多只能上传5个文本文件',
+                icon: 'warning',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
+
+            // 检查文件后缀
+            var fileName = file.name || '';
+            var ext =
+              fileName.lastIndexOf('.') > -1
+                ? fileName.substring(fileName.lastIndexOf('.')).toLowerCase()
+                : '';
+            var supportedExts = this.getSupportedTextExtensions();
+            // 如果有后缀但不在支持列表中，提示用户
+            if (ext && supportedExts.indexOf(ext) === -1) {
+              this.showSwal({
+                title: '不支持的文件类型',
+                text: '请选择文本文件，如 .txt, .md, .js, .py 等',
+                icon: 'error',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
+
+            // 检查文件大小 (限制500KB)
+            if (file.size > 0.5 * 1024 * 1024) {
+              this.showSwal({
+                title: '文件过大',
+                text: '文本文件大小不能超过500KB',
+                icon: 'error',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
+
+            // 检查是否已经上传过同名文件
+            var isDuplicate = this.uploadedPlaintexts.some(
+              item => item.name === fileName
+            );
+            if (isDuplicate) {
+              this.showSwal({
+                title: '文件已存在',
+                text: '已经上传过同名文件: ' + fileName,
+                icon: 'warning',
+                confirmButtonText: '确定'
+              });
+              return;
+            }
+
+            // 读取文件内容
+            try {
+              var content = await this.readFileAsText(file);
+              this.uploadedPlaintexts.push({
+                name: fileName,
+                content: content
+              });
+            } catch (error) {
+              console.error('读取文件失败:', error);
+              this.showSwal({
+                title: '读取失败',
+                text: '无法读取文件内容，请确保是有效的文本文件',
+                icon: 'error',
+                confirmButtonText: '确定'
+              });
+            }
+          },
+
+          // 读取文件为文本
+          readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+              var reader = new FileReader();
+              reader.onload = () => {
+                resolve(reader.result);
+              };
+              reader.onerror = () => {
+                reject(reader.error);
+              };
+              reader.readAsText(file, 'UTF-8');
+            });
+          },
+
+          // 移除文本文件
+          removePlaintext(index) {
+            this.uploadedPlaintexts.splice(index, 1);
+          },
+
+          // 清空上传的文本文件
+          clearUploadedPlaintexts() {
+            this.uploadedPlaintexts = [];
+          },
+
+          // 预览文本文件内容
+          previewPlaintext(item) {
+            var content = item.content || '';
+            // 截取前3000字符预览
+            var previewContent =
+              content.length > 3000
+                ? content.substring(0, 3000) + '\\n\\n... (内容过长，已截断)'
+                : content;
+            this.showSwal({
+              title: item.name,
+              html:
+                '<pre style="text-align: left; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-wrap: break-word; background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 13px;">' +
+                this.escapeHtml(previewContent) +
+                '</pre>',
+              width: this.isMobile ? '95%' : '700px',
+              showConfirmButton: true,
+              confirmButtonText: '关闭'
+            });
+          },
+
+          // HTML转义
+          escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+          },
+
+          // 构建附件内容字符串
+          buildAttachmentContent(plaintexts) {
+            if (!plaintexts || plaintexts.length === 0) return '';
+            var lines = [];
+            lines.push(
+              '\\n\\n---\\n\\n## 附件\\n\\n**以下是用户提供的附件内容，以 `<User_Attachment_数字>` 包裹：**'
+            );
+            for (var i = 0; i < plaintexts.length; i++) {
+              var item = plaintexts[i];
+              var num = i + 1;
+              lines.push('\\n---\\n');
+              lines.push(
+                '<User_Attachment_' + num + ' filename="' + item.name + '">'
+              );
+              lines.push(item.content);
+              lines.push('</User_Attachment_' + num + '>');
+            }
+            return lines.join('\\n');
           },
 
           // 预先调用上传图片服务的/health接口,以减少首次上传延迟
@@ -2737,14 +3106,14 @@
 
           // 处理粘贴事件
           async handlePaste(event) {
-            const clipboardData = event.clipboardData || window.clipboardData;
+            var clipboardData = event.clipboardData || window.clipboardData;
             if (!clipboardData) return;
-            const items = clipboardData.items;
+            var items = clipboardData.items;
             if (!items || !items.length) return;
 
-            // 遍历剪贴板项目，查找图片
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
+            // 遍历剪贴板项目
+            for (var i = 0; i < items.length; i++) {
+              var item = items[i];
 
               // 检查是否为图片类型
               if (item.type.startsWith('image/')) {
@@ -2762,7 +3131,7 @@
                 }
 
                 // 获取图片文件
-                const file = item.getAsFile();
+                var file = item.getAsFile();
                 if (!file) continue;
 
                 // 检查文件大小 (限制10MB)
@@ -2782,6 +3151,36 @@
                 // 上传图片
                 await this.uploadImageFile(file);
                 return; // 只处理第一张图片
+              }
+
+              // 检查是否为文本文件类型
+              if (
+                item.kind === 'file' &&
+                (item.type.startsWith('text/') ||
+                  item.type === 'application/json' ||
+                  item.type === 'application/javascript' ||
+                  item.type === 'application/xml' ||
+                  item.type === '')
+              ) {
+                var textFile = item.getAsFile();
+                if (!textFile) continue;
+
+                // 检查文件名后缀是否支持
+                var fileName = textFile.name || '';
+                var ext =
+                  fileName.lastIndexOf('.') > -1
+                    ? fileName
+                        .substring(fileName.lastIndexOf('.'))
+                        .toLowerCase()
+                    : '';
+                var supportedExts = this.getSupportedTextExtensions();
+
+                // 如果有后缀且在支持列表中，处理文本文件
+                if (ext && supportedExts.indexOf(ext) !== -1) {
+                  event.preventDefault();
+                  await this.processPlaintextFile(textFile);
+                  return;
+                }
               }
             }
           },
@@ -3281,7 +3680,9 @@
 
           async sendMessage() {
             if (
-              (!this.messageInput.trim() && this.uploadedImages.length === 0) ||
+              (!this.messageInput.trim() &&
+                this.uploadedImages.length === 0 &&
+                this.uploadedPlaintexts.length === 0) ||
               !this.apiKey
             )
               return;
@@ -3316,8 +3717,18 @@
               }
             }
 
+            // 处理文本附件
+            var userPlaintexts = [];
+            for (var txtI = 0; txtI < this.uploadedPlaintexts.length; txtI++) {
+              userPlaintexts.push({
+                name: this.uploadedPlaintexts[txtI].name,
+                content: this.uploadedPlaintexts[txtI].content
+              });
+            }
+
             this.clearInput();
             this.clearUploadedImages(); // 清空上传的图片
+            this.clearUploadedPlaintexts(); // 清空上传的文本文件
             // 清空当前会话的草稿
             if (this.currentSession) {
               this.currentSession.draft = '';
@@ -3335,6 +3746,7 @@
               type: 'user',
               content: userMessage,
               images: userImages,
+              plaintexts: userPlaintexts,
               time: new Date().toISOString(),
               model: this.selectedModel
             };
@@ -3377,11 +3789,19 @@
 
               if (msg.type === 'user') {
                 var content = [];
+                // 构建文本内容（包含附件）
+                var textContent = msg.content || '';
+                var plaintextsToUse = isLastUserMsg
+                  ? userPlaintexts
+                  : msg.plaintexts || [];
+                if (plaintextsToUse && plaintextsToUse.length > 0) {
+                  textContent += this.buildAttachmentContent(plaintextsToUse);
+                }
                 // 添加文本内容
-                if (msg.content && msg.content.trim()) {
+                if (textContent && textContent.trim()) {
                   content.push({
                     type: 'text',
-                    text: msg.content
+                    text: textContent
                   });
                 }
                 // 添加图片内容
@@ -3726,6 +4146,10 @@
               this.uploadedImages = (msg.images || [])
                 .filter(i => i && i !== 'INVALID')
                 .map(i => ({ url: i }));
+              // 恢复文本附件到上传列表
+              this.uploadedPlaintexts = (msg.plaintexts || []).map(item => {
+                return { name: item.name, content: item.content };
+              });
               // 删除从 msgIndex 开始的所有消息
               session.messages = session.messages.slice(0, msgIndex);
               // 如果删除了所有消息，重置标题和摘要
