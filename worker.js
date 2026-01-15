@@ -3065,7 +3065,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           </div>
         </div>
         <!-- 主聊天区域 -->
-        <div class="main-chat">
+        <div class="main-chat" v-show="true" v-cloak style="display: none">
           <!-- 头部 -->
           <div class="header">
             <h2 style="cursor: pointer">
