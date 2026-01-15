@@ -100,7 +100,8 @@
 
         // 构建WebDAV代理请求头
         _buildProxyHeaders(config, extraHeaders = {}) {
-          var baseUrl = config.url.replace(/\\/$/, '');
+          var regexp = new RegExp('\\/$');
+          var baseUrl = config.url.replace(regexp, '');
           var headers = {
             'X-WebDAV-URL': baseUrl,
             'X-WebDAV-Auth':
@@ -109,40 +110,70 @@
           return Object.assign(headers, extraHeaders);
         }
 
-        // 测试WebDAV连接
+        // 测试WebDAV连接（使用 PUT/GET/DELETE 方式，兼容性更好）
         async testWebDAVConnection(config) {
-          var targetPath = config.path;
+          var testFileName = '.webdav-test-' + Date.now() + '.txt';
+          var testContent = 'test-' + Date.now();
+          var targetPath = config.path.replace(/\/$/, '') + '/' + testFileName;
           var proxyUrl = this._buildProxyUrl(targetPath);
-          var headers = this._buildProxyHeaders(config, { Depth: '0' });
+          var headers = this._buildProxyHeaders(config, {
+            'Content-Type': 'text/plain'
+          });
+
           try {
-            var response = await fetch(proxyUrl, {
-              method: 'PROPFIND',
-              headers: headers
+            // 步骤1: 尝试写入测试文件
+            var putResponse = await fetch(proxyUrl, {
+              method: 'PUT',
+              headers: headers,
+              body: testContent
             });
-            // 207 Multi-Status 表示成功, 404 可能是目录不存在需要创建
-            if (response.status === 207 || response.status === 200) {
-              return { success: true };
-            } else if (response.status === 404) {
-              // 尝试创建目录
-              var mkcolResponse = await fetch(proxyUrl, {
-                method: 'MKCOL',
-                headers: this._buildProxyHeaders(config)
-              });
-              if (
-                mkcolResponse.status === 201 ||
-                mkcolResponse.status === 405
-              ) {
-                return { success: true };
-              }
+
+            // 401 表示认证失败
+            if (putResponse.status === 401) {
+              return { success: false, error: '认证失败，请检查用户名和密码' };
+            }
+
+            // 403 表示没有写入权限
+            if (putResponse.status === 403) {
+              return { success: false, error: '没有写入权限' };
+            }
+
+            // PUT 成功的状态码: 200, 201, 204
+            if (![200, 201, 204].includes(putResponse.status)) {
               return {
                 success: false,
-                error: '无法创建目录: HTTP ' + mkcolResponse.status
+                error: '写入测试失败: HTTP ' + putResponse.status
               };
-            } else if (response.status === 401) {
-              return { success: false, error: '认证失败，请检查用户名和密码' };
-            } else {
-              return { success: false, error: 'HTTP ' + response.status };
             }
+
+            // 步骤2: 尝试读取测试文件
+            var getHeaders = this._buildProxyHeaders(config);
+            var getResponse = await fetch(proxyUrl, {
+              method: 'GET',
+              headers: getHeaders
+            });
+
+            if (getResponse.status !== 200) {
+              return {
+                success: false,
+                error: '读取测试失败: HTTP ' + getResponse.status
+              };
+            }
+
+            var readContent = await getResponse.text();
+            if (readContent !== testContent) {
+              return { success: false, error: '数据验证失败' };
+            }
+
+            // 步骤3: 删除测试文件（清理）
+            var deleteHeaders = this._buildProxyHeaders(config);
+            await fetch(proxyUrl, {
+              method: 'DELETE',
+              headers: deleteHeaders
+            });
+            // 删除失败也不影响测试结果，忽略错误
+
+            return { success: true };
           } catch (e) {
             return { success: false, error: e.message || '网络错误' };
           }
