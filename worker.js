@@ -652,6 +652,21 @@ ${truncatedAnswer}
     }
   }
 
+  // 处理 WebDAV 代理的 OPTIONS 预检请求（必须放在 WebDAV 代理逻辑之前）
+  if (apiMethod === 'OPTIONS' && apiPath.startsWith('/webdav')) {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods':
+          'GET, PUT, POST, DELETE, PROPFIND, MKCOL, OPTIONS',
+        'Access-Control-Allow-Headers':
+          'Content-Type, Authorization, Depth, X-WebDAV-URL, X-WebDAV-Auth',
+        'Access-Control-Max-Age': '86400'
+      }
+    });
+  }
+
   // WebDAV 代理接口 - 解决跨域问题
   if (apiPath === '/webdav' || apiPath.startsWith('/webdav/')) {
     // 从请求头获取 WebDAV 配置
@@ -719,21 +734,6 @@ ${truncatedAnswer}
       console.error('WebDAV proxy error:', error);
       return createErrorResponse('WebDAV proxy error: ' + error.message, 502);
     }
-  }
-
-  // 处理 WebDAV 代理的 OPTIONS 预检请求
-  if (apiMethod === 'OPTIONS' && apiPath.startsWith('/webdav')) {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods':
-          'GET, PUT, POST, DELETE, PROPFIND, MKCOL, OPTIONS',
-        'Access-Control-Allow-Headers':
-          'Content-Type, Authorization, Depth, X-WebDAV-URL, X-WebDAV-Auth',
-        'Access-Control-Max-Age': '86400'
-      }
-    });
   }
 
   if (!apiPath.startsWith('/v1')) {
