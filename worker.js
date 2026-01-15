@@ -4377,6 +4377,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               return false;
             }
 
+            // 在保存前记录旧的存储模式，用于后续判断是否切换了模式
+            var oldMode = window.openaiDB.webdavEnabled ? 'webdav' : 'local';
+
             // 如果选择了WebDAV，验证配置
             if (storageMode === 'webdav') {
               var urlInput = $('#webdavUrl');
@@ -4432,7 +4435,6 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             await this.saveApiKey();
 
             // 如果切换了存储模式，需要重新加载数据
-            var oldMode = window.openaiDB.webdavEnabled ? 'webdav' : 'local';
             if (oldMode !== storageMode) {
               // 重新加载会话数据
               this.showToast('存储模式已切换，正在重新加载数据...', 'info');
