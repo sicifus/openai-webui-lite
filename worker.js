@@ -5645,7 +5645,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           formatTimeStr(time) {
             let str = new Date(time).toLocaleString();
-            str = str.replace(/\\d{1,2}\$/, '');
+            str = str.replace(/:\\d{1,2}\$/, '');
             return str;
           },
 
