@@ -1,2 +1,21 @@
 # MODEL_IDS 备份
-xiaomi/mimo-v2-flash,qwen/qwen3-8b,mimo-v2-flash,gemini-flash-lite-latest,gemini-3-flash-preview,gemini-2.5-pro,xiaomi/mimo-v2-flash,deepseek-v3.2,deepseek-v3.2-speciale,doubao-seed-1.6-250615,grok-4-fast,grok-4-fast-expert,qwen-turbo-latest,qwen/qwen3-next-80b-a3b-thinking
+#【xiaomi-MiMo】
+mimo-v2-flash;
+#【Gemini-deno 代理】
+gemini-flash-lite-latest;gemini-2.5-flash-lite;gemini-2.5-flash-lite-preview-09-2025;gemini-3-flash-preview;
+#【薄荷 API】
+gemini-2.5-flash;gemini-2.5-pro-1m;gemini-2.5-pro-bs;gemini-3-flash-preview;gemini-3-pro-preview-gcp;gemini-flash-latest;gpt-5.2;gpt-5.2-codex-high;gpt-5.2-codex-low;
+#【WONG 公益站】
+GLM-4.5;GLM-4.5-Air;GLM-4.5-V;GLM-4.6;GLM-4.6-V;GLM-4.7;GLM-4.7-thinking-search;grok-4-expert;grok-4-fast;grok-4-fast-expert;
+#【KFC API】
+kimi-k2-thinking;kimi-k2-instruct;qwen3-next-80b-a3b-instruct;GLM-4.5;DeepSeek-V3.2;DeepSeek-V3.1;moonshotai/kimi-k2.5;THUDM/glm-4-9b-chat;cursor2-grok-4;Qwen/Qwen3-8B;GLM-4.5-Air;kimi-k2-instruct-0905;qwen3-next-80b-a3b-thinking;GLM-4.7;
+#【Embedding 公益站】
+openai/gpt-oss-20b:free;openai/gpt-oss-120b:free;
+#【agentify】
+openai/gpt-oss-120b;Qwen/Qwen3-VL-30B-A3B-Instruct;
+#【AIToolsAPI】
+qwen/qwen2.5-7b;qwen/qwen3-8b;
+#【OpenRouter】
+openrouter/free;stepfun/step-3.5-flash:free;arcee-ai/trinity-large-preview:free;upstage/solar-pro-3:free;allenai/molmo-2-8b:free;nvidia/nemotron-3-nano-30b-a3b:free;arcee-ai/trinity-mini:free;tngtech/tng-r1t-chimera:free;nvidia/nemotron-nano-12b-v2-vl:free;nvidia/nemotron-nano-9b-v2:free;z-ai/glm-4.5-air:free;tngtech/deepseek-r1t2-chimera:free;deepseek/deepseek-r1-0528:free;tngtech/deepseek-r1t-chimera:free;
+#【Hotaru 公益站】
+ gpt-oss-120;bllama-3.3-70b;qwen-3-32b
