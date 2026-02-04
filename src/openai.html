@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hans">
   <head>
     <meta charset="UTF-8" />
@@ -102,8 +102,7 @@
 
         // 构建WebDAV代理请求头
         _buildProxyHeaders(config, extraHeaders = {}) {
-          var regexp = new RegExp('\\/$');
-          var baseUrl = config.url.replace(regexp, '');
+          var baseUrl = config.url.replace(/\/$/, '');
           var headers = {
             'X-WebDAV-URL': baseUrl,
             'X-WebDAV-Auth':
@@ -116,7 +115,7 @@
         async testWebDAVConnection(config) {
           var testFileName = '.webdav-test-' + Date.now() + '.txt';
           var testContent = 'test-' + Date.now();
-          var regexp = new RegExp('\\/$');
+          var regexp = new RegExp('\/$');
           var targetPath = config.path.replace(regexp, '') + '/' + testFileName;
           var proxyUrl = this._buildProxyUrl(targetPath);
           var headers = this._buildProxyHeaders(config, {
@@ -253,7 +252,7 @@
               this._pendingWebdavData = null;
             }
             this._webdavSyncTimer = null;
-          }, 3000); // 3秒防抖
+          }, 5000); // 5秒防抖
         }
 
         // 立即同步到 WebDAV（用于页面关闭前等场景）
@@ -322,6 +321,9 @@
                 'sessions.json?v=' + timestamp
               );
               if (remoteData !== null) {
+                if (window.app) {
+                  window.app.showToast('远程数据已加载', 'success');
+                }
                 return remoteData;
               }
               // 如果远程没有数据，回退到本地
@@ -1553,7 +1555,7 @@
             if (this.isLoading) return true;
             if (this.isStreaming) {
               if (!this.streamingContent) return true;
-              if (this.streamingContent.endsWith(' 条相关信息。\\n\\n'))
+              if (this.streamingContent.endsWith(' 条相关信息。\n\n'))
                 return true;
             }
             return false;
@@ -1584,8 +1586,21 @@
           // 初始化 IndexedDB
           await window.openaiDB.init();
 
+          const renderer = new marked.Renderer();
+          const originalHtmlRenderer = renderer.html.bind(renderer);
+          renderer.html = function (text) {
+            // marked 会自动处理代码块内的内容，这里只处理普通文本
+            // 有条件的转义：如果 < 后面不是 a, br, blockquote, details, summary 标签，才进行转义
+            const escaped = text.replace(
+              /<(?!\/?(a|br|blockquote|details|summary)[\s>])/gi,
+              '&lt;'
+            );
+            return originalHtmlRenderer(escaped);
+          };
+
           // 配置 marked
           marked.setOptions({
+            renderer,
             breaks: true, // 支持 GFM 换行
             gfm: true, // 启用 GitHub Flavored Markdown
             tables: true, // 支持表格
@@ -1600,10 +1615,10 @@
                 name: 'strongWithCJK',
                 level: 'inline',
                 start(src) {
-                  return src.match(/\\*\\*/)?.index;
+                  return src.match(/\*\*/)?.index;
                 },
                 tokenizer(src) {
-                  const rule = /^\\*\\*([^\\*]+?)\\*\\*/;
+                  const rule = /^\*\*([^\*]+?)\*\*/;
                   const match = rule.exec(src);
                   if (match) {
                     return {
@@ -2027,9 +2042,8 @@
 
               // WebDAV连通性测试
               Swal.showLoading();
-              var result = await window.openaiDB.testWebDAVConnection(
-                webdavConfig
-              );
+              var result =
+                await window.openaiDB.testWebDAVConnection(webdavConfig);
               if (!result.success) {
                 Swal.hideLoading();
                 this.showToast('WebDAV 连接失败: ' + result.error, 'error');
@@ -2063,9 +2077,8 @@
 
           // 加载会话数据（独立方法）
           async loadSessions() {
-            var savedSessions = await window.openaiDB.getItem(
-              'openai_sessions'
-            );
+            var savedSessions =
+              await window.openaiDB.getItem('openai_sessions');
             if (savedSessions) {
               var parsed = JSON.parse(savedSessions);
               var migratedSessions = this.migrateSessionData(parsed);
@@ -2390,13 +2403,9 @@
               'openai_enable_search'
             ));
 
-            // 加载当前会话的草稿
-            this.loadDraftFromCurrentSession();
-
             // 加载会话数据
-            const savedSessions = await window.openaiDB.getItem(
-              'openai_sessions'
-            );
+            const savedSessions =
+              await window.openaiDB.getItem('openai_sessions');
             if (savedSessions) {
               let parsed = JSON.parse(savedSessions);
               // 执行数据迁移
@@ -2422,6 +2431,7 @@
               this.currentSessionId = this.sessions[0].id;
             }
             this.autoFoldRolePrompt();
+            this.loadDraftFromCurrentSession(); // 加载当前会话的草稿
 
             // 首次向用户询问 API Key
             if (!this.apiKey && this.isTotallyBlank) {
@@ -2882,7 +2892,7 @@
             // 截取前3000字符预览
             var previewContent =
               content.length > 3000
-                ? content.substring(0, 3000) + '\\n\\n... (内容过长，已截断)'
+                ? content.substring(0, 3000) + '\n\n... (内容过长，已截断)'
                 : content;
             this.showSwal({
               title: item.name,
@@ -2908,19 +2918,19 @@
             if (!plaintexts || plaintexts.length === 0) return '';
             var lines = [];
             lines.push(
-              '\\n\\n---\\n\\n## 附件\\n\\n**以下是用户提供的附件内容，以 \`<User_Attachment_数字>\` 包裹：**'
+              '\n\n---\n\n## 附件\n\n**以下是用户提供的附件内容，以 \`<User_Attachment_数字>\` 包裹：**'
             );
             for (var i = 0; i < plaintexts.length; i++) {
               var item = plaintexts[i];
               var num = i + 1;
-              lines.push('\\n\\n---\\n\\n### 附件 ' + num + ':\\n\\n');
+              lines.push('\n\n---\n\n### 附件 ' + num + ':\n\n');
               lines.push(
                 '<User_Attachment_' + num + ' filename="' + item.name + '">'
               );
               lines.push(item.content);
               lines.push('</User_Attachment_' + num + '>');
             }
-            return lines.join('\\n');
+            return lines.join('\n');
           },
 
           // 预先调用上传图片服务的/health接口,以减少首次上传延迟
@@ -3156,8 +3166,7 @@
 
           formatTimeStr(time) {
             let str = new Date(time).toLocaleString();
-            const regex = new RegExp(':\\\\d{1,2}$');
-            str = str.replace(regex, '');
+            str = str.replace(/:\d{1,2}$/, '');
             return str;
           },
 
@@ -3235,11 +3244,13 @@
           },
 
           copyToClipboard(text) {
-            const regexp = new RegExp(
-              '\\[([0-9]+)\\]\\(javascript:void\\(0\\)\\)',
-              'g'
-            );
-            text = text.replace(regexp, '$1');
+            const regexRel = /\[(\d+)\]\(javascript:void\(0\)\)/g;
+            text = text.replace(regexRel, '$1');
+            // 将 <details class="thinking" ... 直至</detail>的内容移除
+            const regexThinking =
+              /<details class="thinking"[\s\S]*?<\/details>/g;
+            text = text.replace(regexThinking, '');
+            text = text.trim();
             navigator.clipboard
               .writeText(text)
               .then(() => {
@@ -3524,9 +3535,7 @@
             }
 
             this.errorMessage = '';
-            var userMessage = this.messageInput
-              .trim()
-              .replace(new RegExp('<', 'g'), '&lt;');
+            var userMessage = this.messageInput.trim();
 
             // 处理图片:如果不支持URL,转为base64;否则使用URL
             var userImages = [];
@@ -3669,7 +3678,7 @@
               var queryStr = userMessage;
               if (session.messages.length > 1) {
                 queryStr +=
-                  '\\n\\n当前会话摘要："' + (session.summary || '') + '"';
+                  '\n\n当前会话摘要："' + (session.summary || '') + '"';
               }
               var searchResList = await fetch('/search', {
                 method: 'POST',
@@ -3713,7 +3722,7 @@
                 apiMessages.push({
                   role: 'assistant',
                   content:
-                    'AI模型通过实时调用Tavily搜索引擎，找到了以下相关信息: \\n\\n' +
+                    'AI模型通过实时调用Tavily搜索引擎，找到了以下相关信息: \n\n' +
                     '<Tavily_Search_Context>' +
                     JSON.stringify(searchResList) +
                     '</Tavily_Search_Context>'
@@ -3725,35 +3734,35 @@
                     new Date().toDateString() +
                     ' ' +
                     new Date().toTimeString() +
-                    '，请据此推断"最近"、"今年"等时间词的具体含义。\\n你无需针对"用户澄清真实时间"这件事做出任何提及和表态，请专注于核心问题的解答。\\n\\n' +
-                    '## 严格执行原则 (Critical Rules)\\n' +
-                    '### 1. 事实基准 (Grounding)\\n' +
-                    '*   **优先权**：搜索语料的权重 **高于** 你的内部训练知识。如果搜索结果与你的记忆冲突（特别是时效性信息），**必须**以搜索结果为准。\\n' +
-                    '*   **诚实性**：如果搜索结果中没有包含回答问题所需的关键信息，请明确指出"搜索结果未提及此事"，严禁编造数据。\\n\\n' +
-                    '### 2. "最大化"信息的处理\\n' +
-                    '*   你收到的搜索结果可能覆盖了问题的不同维度（定义、新闻、正反观点等）。\\n' +
-                    '*   **不要** 简单罗列结果。\\n' +
-                    '*   **要** 进行**交叉验证**和**综合叙述**。例如：将Source A的数据与Source B的观点结合起来分析。\\n' +
-                    '### 3. 格式要求\\n' +
-                    '*   使用 Markdown 格式。\\n' +
-                    '*   如果信息量大，**必须**使用层级标题、着重号（Bold）和列表。\\n' +
-                    '*   如果涉及对比（如A vs B），尽量使用 Markdown 表格。\\n\\n' +
-                    '---\\n\\n' +
-                    '## 回答结构框架\\n' +
-                    '1.  **直接解答 (The Bottom Line)**\\n' +
-                    '    *   用一句话总结核心答案（TL;DR）。\\n' +
-                    '2.  **关键发现 (Key Findings)**\\n' +
-                    '    *   分点详述，整合不同维度的信息。\\n' +
-                    '3.  **深度解析 (Deep Dive)** (视情况而定)\\n' +
-                    '    *   解释背后的原因、背景或具体数据支撑。\\n' +
-                    '4.  **来源列表 (References)**\\n' +
-                    '    *   列出你实际引用的参考链接(应当是包含真实url、可通过点击跳转的Markdown超链接，例如：1. [](https://en.wikipedia.org/wiki/DeepSeek) )。\\n\\n' +
-                    '---\\n\\n' +
-                    '## 用户问题 (User Question)\\n' +
-                    '<User_Question>\\n' +
+                    '，请据此推断"最近"、"今年"等时间词的具体含义。\n你无需针对"用户澄清真实时间"这件事做出任何提及和表态，请专注于核心问题的解答。\n\n' +
+                    '## 严格执行原则 (Critical Rules)\n' +
+                    '### 1. 事实基准 (Grounding)\n' +
+                    '*   **优先权**：搜索语料的权重 **高于** 你的内部训练知识。如果搜索结果与你的记忆冲突（特别是时效性信息），**必须**以搜索结果为准。\n' +
+                    '*   **诚实性**：如果搜索结果中没有包含回答问题所需的关键信息，请明确指出"搜索结果未提及此事"，严禁编造数据。\n\n' +
+                    '### 2. "最大化"信息的处理\n' +
+                    '*   你收到的搜索结果可能覆盖了问题的不同维度（定义、新闻、正反观点等）。\n' +
+                    '*   **不要** 简单罗列结果。\n' +
+                    '*   **要** 进行**交叉验证**和**综合叙述**。例如：将Source A的数据与Source B的观点结合起来分析。\n' +
+                    '### 3. 格式要求\n' +
+                    '*   使用 Markdown 格式。\n' +
+                    '*   如果信息量大，**必须**使用层级标题、着重号（Bold）和列表。\n' +
+                    '*   如果涉及对比（如A vs B），尽量使用 Markdown 表格。\n\n' +
+                    '---\n\n' +
+                    '## 回答结构框架\n' +
+                    '1.  **直接解答 (The Bottom Line)**\n' +
+                    '    *   用一句话总结核心答案（TL;DR）。\n' +
+                    '2.  **关键发现 (Key Findings)**\n' +
+                    '    *   分点详述，整合不同维度的信息。\n' +
+                    '3.  **深度解析 (Deep Dive)** (视情况而定)\n' +
+                    '    *   解释背后的原因、背景或具体数据支撑。\n' +
+                    '4.  **来源列表 (References)**\n' +
+                    '    *   列出你实际引用的参考链接(应当是包含真实url、可通过点击跳转的Markdown超链接，例如：1. [](https://en.wikipedia.org/wiki/DeepSeek) )。\n\n' +
+                    '---\n\n' +
+                    '## 用户问题 (User Question)\n' +
+                    '<User_Question>\n' +
                     queryStr +
-                    '\\n' +
-                    '</User_Question>\\n\\n' +
+                    '\n' +
+                    '</User_Question>\n\n' +
                     '现在你的任务是基于上述提供的**实时搜索结果**（Tavily_Search_Context），回答用户的原始问题。你需要像撰写深度调查报告一样，将碎片化的信息拼凑成完整的逻辑链条。'
                 });
                 // 显示搜索结果数量（如果有）
@@ -3761,11 +3770,11 @@
                   this.streamingContent =
                     '> 联网搜索：' +
                     searchQueries.map(q => '「' + q + '」').join('、') +
-                    '\\n> \\n> AI 模型通过实时调用 Tavily 搜索引擎，找到了 ' +
+                    '\n> \n> AI 模型通过实时调用 Tavily 搜索引擎，找到了 ' +
                     searchCounts
                       .map(c => '[' + c + '](javascript:void(0))')
                       .join(' + ') +
-                    ' 条相关信息。\\n\\n';
+                    ' 条相关信息。\n\n';
                 }
               }
             }
@@ -3810,6 +3819,7 @@
               var reader = response.body.getReader();
               var decoder = new TextDecoder();
               var buffer = '';
+              var isInThinking = false; // 标记是否处于思考模式
 
               while (true) {
                 var readResult = await reader.read();
@@ -3817,7 +3827,7 @@
 
                 buffer += decoder.decode(readResult.value, { stream: true });
 
-                var lines = buffer.split('\\n');
+                var lines = buffer.split('\n');
                 buffer = lines.pop() || ''; // 保留最后一个不完整的行
 
                 for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -3833,8 +3843,40 @@
                         : trimmedLine.slice(5);
                       var data = JSON.parse(jsonStr);
 
+                      // 处理 reasoning_content (思考内容)
+                      if (
+                        data.choices &&
+                        data.choices[0].delta.reasoning_content
+                      ) {
+                        var reasoningDelta =
+                          data.choices[0].delta.reasoning_content;
+                        if (reasoningDelta) {
+                          var shouldScroll = !this.streamingContent;
+                          // 如果还未进入思考模式，添加开始标签
+                          if (!isInThinking) {
+                            this.streamingContent +=
+                              '<details class="thinking" open style="font-size: 0.75em">\n<summary>思考内容</summary>\n\n';
+                            isInThinking = true;
+                          }
+                          this.streamingContent += reasoningDelta;
+                          if (shouldScroll) {
+                            this.scrollToBottom();
+                          }
+                        }
+                      }
+
+                      // 处理 content (正式回答)
                       if (data.choices && data.choices[0].delta.content) {
                         var delta = data.choices[0].delta.content;
+                        // 如果之前在思考模式，现在要输出正式内容了，先关闭思考块
+                        if (isInThinking) {
+                          this.streamingContent += '\n</details>\n\n';
+                          this.streamingContent = this.streamingContent.replace(
+                            '<details class="thinking" open',
+                            '<details class="thinking"'
+                          );
+                          isInThinking = false;
+                        }
                         var regThinkStart = new RegExp('<think>');
                         var regThinkEnd = new RegExp('</think>');
                         delta = delta
@@ -3842,7 +3884,7 @@
                             regThinkStart,
                             '<blockquote style="font-size: 0.75em">'
                           )
-                          .replace(regThinkEnd, '</blockquote>\\n');
+                          .replace(regThinkEnd, '</blockquote>\n');
                         if (delta) {
                           var shouldScroll = !this.streamingContent;
                           this.streamingContent += delta;

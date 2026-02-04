@@ -932,9 +932,11 @@ function getLiteModelId(modelIds) {
     .map(i => i.split('=')[0].trim())
     .filter(i => i);
   const parts = [
+    'deepseek-v',
+    'qwen3-next',
+    '-oss-',
     '-mini',
     'qwen3-max',
-    '-v3',
     '-k2',
     '-nano',
     '-flash',
@@ -1389,7 +1391,7 @@ function getManifestContent(title) {
 }
 
 function getHtmlContent(modelIds, tavilyKeys, title) {
-  let htmlContent = `<!DOCTYPE html>
+  let htmlContent = `<!doctype html>
 <html lang="zh-Hans">
   <head>
     <meta charset="UTF-8" />
@@ -1435,7 +1437,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
       
       body {
         position: relative;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
         min-height: 100vh;
         min-height: 100dvh;
@@ -2524,6 +2527,32 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         color: #666;
       }
       
+      .rendered-content details {
+        margin: 1em 0;
+        padding: 0.8em 1em;
+        background: #f8f9fa;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+      }
+      
+      .rendered-content details summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: #555;
+        padding: 0.3em 0;
+        user-select: none;
+      }
+      
+      .rendered-content details summary:hover {
+        color: #333;
+      }
+      
+      .rendered-content details[open] summary {
+        padding-bottom: 0.5em;
+        margin-bottom: 0.75em;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      
       .streaming-answer {
         min-height: 1.5em;
       }
@@ -2595,8 +2624,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
         // 构建WebDAV代理请求头
         _buildProxyHeaders(config, extraHeaders = {}) {
-          var regexp = new RegExp('\\/$');
-          var baseUrl = config.url.replace(regexp, '');
+          var baseUrl = config.url.replace(/\\/\$/, '');
           var headers = {
             'X-WebDAV-URL': baseUrl,
             'X-WebDAV-Auth':
@@ -2609,7 +2637,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         async testWebDAVConnection(config) {
           var testFileName = '.webdav-test-' + Date.now() + '.txt';
           var testContent = 'test-' + Date.now();
-          var regexp = new RegExp('\\/$');
+          var regexp = new RegExp('\\/\$');
           var targetPath = config.path.replace(regexp, '') + '/' + testFileName;
           var proxyUrl = this._buildProxyUrl(targetPath);
           var headers = this._buildProxyHeaders(config, {
@@ -2746,7 +2774,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               this._pendingWebdavData = null;
             }
             this._webdavSyncTimer = null;
-          }, 3000); // 3秒防抖
+          }, 5000); // 5秒防抖
         }
 
         // 立即同步到 WebDAV（用于页面关闭前等场景）
@@ -2815,6 +2843,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 'sessions.json?v=' + timestamp
               );
               if (remoteData !== null) {
+                if (window.app) {
+                  window.app.showToast('远程数据已加载', 'success');
+                }
                 return remoteData;
               }
               // 如果远程没有数据，回退到本地
@@ -3903,8 +3934,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
     </div>
 
     <script>
-      const $ = selector => document.querySelector(selector);
-      const $$ = selector => Array.from(document.querySelectorAll(selector));
+      const \$ = selector => document.querySelector(selector);
+      const \$\$ = selector => Array.from(document.querySelectorAll(selector));
       const { createApp } = Vue;
 
       window.app = createApp({
@@ -3917,7 +3948,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             isSentForAWhile: false,
             errorMessage: '',
             selectedModel: '',
-            availableModels: ['$MODELS_PLACEHOLDER$'],
+            availableModels: ['\$MODELS_PLACEHOLDER\$'],
             sessions: [],
             currentSessionId: null,
             isFoldRole: false,
@@ -4065,7 +4096,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         },
         async mounted() {
           this.initModels();
-          this.$nextTick(() => {
+          this.\$nextTick(() => {
             this.initTomSelect();
           });
 
@@ -4077,8 +4108,21 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           // 初始化 IndexedDB
           await window.openaiDB.init();
 
+          const renderer = new marked.Renderer();
+          const originalHtmlRenderer = renderer.html.bind(renderer);
+          renderer.html = function (text) {
+            // marked 会自动处理代码块内的内容，这里只处理普通文本
+            // 有条件的转义：如果 < 后面不是 a, br, blockquote, details, summary 标签，才进行转义
+            const escaped = text.replace(
+              /<(?!\\/?(a|br|blockquote|details|summary)[\\s>])/gi,
+              '&lt;'
+            );
+            return originalHtmlRenderer(escaped);
+          };
+
           // 配置 marked
           marked.setOptions({
+            renderer,
             breaks: true, // 支持 GFM 换行
             gfm: true, // 启用 GitHub Flavored Markdown
             tables: true, // 支持表格
@@ -4250,7 +4294,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 打开设置弹窗
           openSettingsModal() {
-            var template = this.$refs.settingsTemplate;
+            var template = this.\$refs.settingsTemplate;
             if (!template) return;
             var htmlContent = template.innerHTML;
 
@@ -4267,13 +4311,13 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               reverseButtons: true,
               didOpen: async () => {
                 this.isShowSettingsModal = true;
-                await this.$nextTick();
+                await this.\$nextTick();
                 // 填充当前值
-                var apiKeyInput = $('#settingsApiKey');
+                var apiKeyInput = \$('#settingsApiKey');
                 if (apiKeyInput) apiKeyInput.value = this.apiKey || '';
 
-                var localRadio = $('input[name="storageMode"][value="local"]');
-                var webdavRadio = $(
+                var localRadio = \$('input[name="storageMode"][value="local"]');
+                var webdavRadio = \$(
                   'input[name="storageMode"][value="webdav"]'
                 );
                 if (this.storageMode === 'webdav' && webdavRadio) {
@@ -4283,10 +4327,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 }
 
                 // 填充WebDAV配置
-                var urlInput = $('#webdavUrl');
-                var usernameInput = $('#webdavUsername');
-                var passwordInput = $('#webdavPassword');
-                var pathInput = $('#webdavPath');
+                var urlInput = \$('#webdavUrl');
+                var usernameInput = \$('#webdavUsername');
+                var passwordInput = \$('#webdavPassword');
+                var pathInput = \$('#webdavPath');
                 if (urlInput) urlInput.value = this.webdavConfig.url || '';
                 if (usernameInput)
                   usernameInput.value = this.webdavConfig.username || '';
@@ -4296,7 +4340,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   pathInput.value = this.webdavConfig.path || '/openai-chat/';
 
                 // 显示/隐藏WebDAV配置区域
-                var webdavSection = $('#webdavConfigSection');
+                var webdavSection = \$('#webdavConfigSection');
                 if (webdavSection) {
                   webdavSection.style.display =
                     this.storageMode === 'webdav' ? 'block' : 'none';
@@ -4306,10 +4350,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 this.updateStorageModeStyle();
 
                 // 绑定存储模式切换事件
-                var radios = $$('input[name="storageMode"]');
+                var radios = \$\$('input[name="storageMode"]');
                 radios.forEach(radio => {
                   radio.addEventListener('change', () => {
-                    var webdavSection = $('#webdavConfigSection');
+                    var webdavSection = \$('#webdavConfigSection');
                     if (webdavSection) {
                       webdavSection.style.display =
                         radio.value === 'webdav' ? 'block' : 'none';
@@ -4319,14 +4363,14 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                 });
 
                 // 绑定测试按钮事件
-                var testBtn = $('#testWebdavBtn');
+                var testBtn = \$('#testWebdavBtn');
                 if (testBtn) {
                   testBtn.addEventListener('click', () => {
                     this.testWebDAVFromModal();
                   });
                 }
 
-                var title = $('.swal2-modal .swal2-title');
+                var title = \$('.swal2-modal .swal2-title');
                 if (title) {
                   title.addEventListener('dblclick', () => {
                     this.reloadPage();
@@ -4347,7 +4391,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 更新存储模式选项样式
           updateStorageModeStyle() {
-            var options = $$('.storage-mode-option');
+            var options = \$\$('.storage-mode-option');
             options.forEach(option => {
               var radio = option.querySelector('input[type="radio"]');
               if (radio && radio.checked) {
@@ -4362,11 +4406,11 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 从弹窗中测试WebDAV连接
           async testWebDAVFromModal() {
-            var urlInput = $('#webdavUrl');
-            var usernameInput = $('#webdavUsername');
-            var passwordInput = $('#webdavPassword');
-            var pathInput = $('#webdavPath');
-            var testBtn = $('#testWebdavBtn');
+            var urlInput = \$('#webdavUrl');
+            var usernameInput = \$('#webdavUsername');
+            var passwordInput = \$('#webdavPassword');
+            var pathInput = \$('#webdavPath');
+            var testBtn = \$('#testWebdavBtn');
             var config = {
               url: urlInput ? urlInput.value.trim() : '',
               username: usernameInput ? usernameInput.value.trim() : '',
@@ -4411,7 +4455,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           // 显示Toast提示（不影响Swal弹窗）
           showToast(message, icon) {
             // 创建toast容器（如果不存在）
-            var container = $('#custom-toast-container');
+            var container = \$('#custom-toast-container');
             if (!container) {
               container = document.createElement('div');
               container.id = 'custom-toast-container';
@@ -4472,10 +4516,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 验证并保存设置
           async validateAndSaveSettings() {
-            var apiKeyInput = $('#settingsApiKey');
+            var apiKeyInput = \$('#settingsApiKey');
             var apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
 
-            var storageModeRadio = $('input[name="storageMode"]:checked');
+            var storageModeRadio = \$('input[name="storageMode"]:checked');
             var storageMode = storageModeRadio
               ? storageModeRadio.value
               : 'local';
@@ -4491,10 +4535,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
             // 如果选择了WebDAV，验证配置
             if (storageMode === 'webdav') {
-              var urlInput = $('#webdavUrl');
-              var usernameInput = $('#webdavUsername');
-              var passwordInput = $('#webdavPassword');
-              var pathInput = $('#webdavPath');
+              var urlInput = \$('#webdavUrl');
+              var usernameInput = \$('#webdavUsername');
+              var passwordInput = \$('#webdavPassword');
+              var pathInput = \$('#webdavPath');
 
               var webdavConfig = {
                 url: urlInput ? urlInput.value.trim() : '',
@@ -4520,9 +4564,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
               // WebDAV连通性测试
               Swal.showLoading();
-              var result = await window.openaiDB.testWebDAVConnection(
-                webdavConfig
-              );
+              var result =
+                await window.openaiDB.testWebDAVConnection(webdavConfig);
               if (!result.success) {
                 Swal.hideLoading();
                 this.showToast('WebDAV 连接失败: ' + result.error, 'error');
@@ -4556,9 +4599,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 加载会话数据（独立方法）
           async loadSessions() {
-            var savedSessions = await window.openaiDB.getItem(
-              'openai_sessions'
-            );
+            var savedSessions =
+              await window.openaiDB.getItem('openai_sessions');
             if (savedSessions) {
               var parsed = JSON.parse(savedSessions);
               var migratedSessions = this.migrateSessionData(parsed);
@@ -4590,7 +4632,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           initTomSelect() {
             if (this.tomSelect) return;
             if (this.availableModels.length <= 10) return;
-            const el = $('#selectedModel');
+            const el = \$('#selectedModel');
             if (!el) return;
             const config = {
               plugins: ['dropdown_input'],
@@ -4625,7 +4667,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               },
               onDelete: () => false,
               onInitialize: () => {
-                const input = $('.dropdown-input-wrap input');
+                const input = \$('.dropdown-input-wrap input');
                 if (!input) return;
                 input.style.paddingLeft = '12px';
                 input.style.paddingRight = '12px';
@@ -4883,13 +4925,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               'openai_enable_search'
             ));
 
-            // 加载当前会话的草稿
-            this.loadDraftFromCurrentSession();
-
             // 加载会话数据
-            const savedSessions = await window.openaiDB.getItem(
-              'openai_sessions'
-            );
+            const savedSessions =
+              await window.openaiDB.getItem('openai_sessions');
             if (savedSessions) {
               let parsed = JSON.parse(savedSessions);
               // 执行数据迁移
@@ -4915,6 +4953,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               this.currentSessionId = this.sessions[0].id;
             }
             this.autoFoldRolePrompt();
+            this.loadDraftFromCurrentSession(); // 加载当前会话的草稿
 
             // 首次向用户询问 API Key
             if (!this.apiKey && this.isTotallyBlank) {
@@ -5135,7 +5174,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               return;
             }
             this.preheatImageUploadService();
-            this.$refs.imageInput.click();
+            this.\$refs.imageInput.click();
           },
 
           // 触发文本文件上传
@@ -5149,7 +5188,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               });
               return;
             }
-            this.$refs.plaintextInput.click();
+            this.\$refs.plaintextInput.click();
           },
 
           // 获取支持的文本文件后缀列表
@@ -5401,7 +5440,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             if (!plaintexts || plaintexts.length === 0) return '';
             var lines = [];
             lines.push(
-              '\\n\\n---\\n\\n## 附件\\n\\n**以下是用户提供的附件内容，以 \`<User_Attachment_数字>\` 包裹：**'
+              '\\n\\n---\\n\\n## 附件\\n\\n**以下是用户提供的附件内容，以 \\\`<User_Attachment_数字>\\\` 包裹：**'
             );
             for (var i = 0; i < plaintexts.length; i++) {
               var item = plaintexts[i];
@@ -5649,8 +5688,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           formatTimeStr(time) {
             let str = new Date(time).toLocaleString();
-            const regex = new RegExp(':\\\\d{1,2}$');
-            str = str.replace(regex, '');
+            str = str.replace(/:\\d{1,2}\$/, '');
             return str;
           },
 
@@ -5728,11 +5766,13 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           copyToClipboard(text) {
-            const regexp = new RegExp(
-              '\\[([0-9]+)\\]\\(javascript:void\\(0\\)\\)',
-              'g'
-            );
-            text = text.replace(regexp, '$1');
+            const regexRel = /\\[(\\d+)\\]\\(javascript:void\\(0\\)\\)/g;
+            text = text.replace(regexRel, '\$1');
+            // 将 <details class="thinking" ... 直至</detail>的内容移除
+            const regexThinking =
+              /<details class="thinking"[\\s\\S]*?<\\/details>/g;
+            text = text.replace(regexThinking, '');
+            text = text.trim();
             navigator.clipboard
               .writeText(text)
               .then(() => {
@@ -5785,8 +5825,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             } else {
               this.searchRes = searchRes;
             }
-            await this.$nextTick();
-            const template = this.$refs.searchResTemplate;
+            await this.\$nextTick();
+            const template = this.\$refs.searchResTemplate;
             if (!template) return;
             const htmlContent = template.innerHTML;
             // 显示弹窗
@@ -5806,7 +5846,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           async shareSession() {
-            const sessionContent = $('.session-content');
+            const sessionContent = \$('.session-content');
             if (!sessionContent) {
               this.showSwal({
                 title: '截图失败',
@@ -5817,7 +5857,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               return;
             }
             this.isCapturing = true;
-            await this.$nextTick();
+            await this.\$nextTick();
 
             // 显示加载提示
             this.showSwal({
@@ -5865,7 +5905,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                   // 如果点击了确认按钮（显示为"下载"）
                   if (result.isConfirmed) {
                     const link = document.createElement('a');
-                    const regex = new RegExp('[\/\: ]', 'g');
+                    const regex = new RegExp('[\\/\\: ]', 'g');
                     link.download =
                       'openai-chat-' +
                       new Date().toLocaleString().replace(regex, '-') +
@@ -6017,9 +6057,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             }
 
             this.errorMessage = '';
-            var userMessage = this.messageInput
-              .trim()
-              .replace(new RegExp('<', 'g'), '&lt;');
+            var userMessage = this.messageInput.trim();
 
             // 处理图片:如果不支持URL,转为base64;否则使用URL
             var userImages = [];
@@ -6303,6 +6341,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               var reader = response.body.getReader();
               var decoder = new TextDecoder();
               var buffer = '';
+              var isInThinking = false; // 标记是否处于思考模式
 
               while (true) {
                 var readResult = await reader.read();
@@ -6326,8 +6365,40 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                         : trimmedLine.slice(5);
                       var data = JSON.parse(jsonStr);
 
+                      // 处理 reasoning_content (思考内容)
+                      if (
+                        data.choices &&
+                        data.choices[0].delta.reasoning_content
+                      ) {
+                        var reasoningDelta =
+                          data.choices[0].delta.reasoning_content;
+                        if (reasoningDelta) {
+                          var shouldScroll = !this.streamingContent;
+                          // 如果还未进入思考模式，添加开始标签
+                          if (!isInThinking) {
+                            this.streamingContent +=
+                              '<details class="thinking" open style="font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n';
+                            isInThinking = true;
+                          }
+                          this.streamingContent += reasoningDelta;
+                          if (shouldScroll) {
+                            this.scrollToBottom();
+                          }
+                        }
+                      }
+
+                      // 处理 content (正式回答)
                       if (data.choices && data.choices[0].delta.content) {
                         var delta = data.choices[0].delta.content;
+                        // 如果之前在思考模式，现在要输出正式内容了，先关闭思考块
+                        if (isInThinking) {
+                          this.streamingContent += '\\n</details>\\n\\n';
+                          this.streamingContent = this.streamingContent.replace(
+                            '<details class="thinking" open',
+                            '<details class="thinking"'
+                          );
+                          isInThinking = false;
+                        }
                         var regThinkStart = new RegExp('<think>');
                         var regThinkEnd = new RegExp('</think>');
                         delta = delta
@@ -6720,8 +6791,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           autoResizeTextarea() {
-            this.$nextTick(() => {
-              const textarea = this.$refs.messageInputRef;
+            this.\$nextTick(() => {
+              const textarea = this.\$refs.messageInputRef;
               if (textarea) {
                 textarea.style.height = 'auto';
                 textarea.style.height =
@@ -6731,8 +6802,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           scrollToTop() {
-            this.$nextTick(() => {
-              const container = this.$refs.messagesContainer;
+            this.\$nextTick(() => {
+              const container = this.\$refs.messagesContainer;
               if (container) {
                 container.scrollTop = 0;
               }
@@ -6740,8 +6811,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           },
 
           scrollToBottom() {
-            this.$nextTick(() => {
-              const container = this.$refs.messagesContainer;
+            this.\$nextTick(() => {
+              const container = this.\$refs.messagesContainer;
               if (container) {
                 container.scrollTop = container.scrollHeight;
               }
@@ -6750,9 +6821,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
           // 如果当前已经滑动到底部，则保持在底部
           async stickToBottom() {
-            await this.$nextTick();
+            await this.\$nextTick();
             const vh = window.innerHeight;
-            const container = this.$refs.messagesContainer;
+            const container = this.\$refs.messagesContainer;
             if (!container) return;
             // 如果当前容器滚动高度低于1.15倍window.innerHeight, 强制滚动到底部
             if (container.scrollHeight < vh * 1.15) {
@@ -6798,7 +6869,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           // 显示关于信息
           showAbout() {
             const isMobile = this.isMobile;
-            const template = this.$refs.aboutTemplate;
+            const template = this.\$refs.aboutTemplate;
             if (!template) return;
             const htmlContent = template.innerHTML;
             this.showSwal({

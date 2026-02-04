@@ -60,6 +60,14 @@ try {
   const workerContent = fs.readFileSync(workerPath, 'utf-8');
   console.log('✅ worker.js 文件读取成功，大小:', workerContent.length, '字符');
 
+  // 2.5. 转义 HTML 内容用于模板字符串
+  console.log('🔒 转义 HTML 内容用于模板字符串...');
+  processedHtml = processedHtml
+    .replace(/\\/g, '\\\\') // 先转义反斜杠
+    .replace(/`/g, '\\`') // 转义反引号
+    .replace(/\$/g, '\\$'); // 转义美元符号
+  console.log('✅ HTML 内容转义完成');
+
   // 3. 使用正则替换 htmlContent 部分
   // 匹配模式：let htmlContent = `...任意内容...`; // htmlContent FINISHED
   const regex = /(let htmlContent = `)([\s\S]*?)(`; \/\/ htmlContent FINISHED)/;
