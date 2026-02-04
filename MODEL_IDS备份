@@ -16,6 +16,6 @@ openai/gpt-oss-120b;Qwen/Qwen3-VL-30B-A3B-Instruct;
 #【AIToolsAPI】
 qwen/qwen2.5-7b;qwen/qwen3-8b;
 #【OpenRouter】
-openrouter/free;stepfun/step-3.5-flash:free;arcee-ai/trinity-large-preview:free;upstage/solar-pro-3:free;allenai/molmo-2-8b:free;nvidia/nemotron-3-nano-30b-a3b:free;arcee-ai/trinity-mini:free;tngtech/tng-r1t-chimera:free;nvidia/nemotron-nano-12b-v2-vl:free;nvidia/nemotron-nano-9b-v2:free;z-ai/glm-4.5-air:free;tngtech/deepseek-r1t2-chimera:free;deepseek/deepseek-r1-0528:free;tngtech/deepseek-r1t-chimera:free;
+openrouter/free;
 #【Hotaru 公益站】
- gpt-oss-120;bllama-3.3-70b;qwen-3-32b
+gpt-oss-120;bllama-3.3-70b;qwen-3-32b;
