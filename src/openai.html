@@ -666,6 +666,7 @@
             <div
               v-if="currentSession && currentSession.messages && currentSession.messages.length > 0"
               class="session-content"
+              :class="{capturing: isCapturing}"
             >
               <!-- 角色设定显示 -->
               <div

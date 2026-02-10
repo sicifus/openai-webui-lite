@@ -2381,6 +2381,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         padding: 8px;
       }
       
+      .session-content.capturing details summary::marker {
+        list-style-type: disc;
+      }
+      
       .content-section {
         flex: 0 0 auto;
         position: relative;
@@ -3188,6 +3192,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             <div
               v-if="currentSession && currentSession.messages && currentSession.messages.length > 0"
               class="session-content"
+              :class="{capturing: isCapturing}"
             >
               <!-- 角色设定显示 -->
               <div
