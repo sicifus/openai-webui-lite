@@ -6377,7 +6377,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                           // 如果还未进入思考模式，添加开始标签
                           if (!isInThinking) {
                             this.streamingContent +=
-                              '<details class="thinking" open style="font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n';
+                              '<details class="thinking" open style="position: relative; overflow: hidden; font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n';
                             isInThinking = true;
                           }
                           this.streamingContent += reasoningDelta;
@@ -6404,7 +6404,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                         var shouldFoldThinking = false;
                         delta = delta.replace(
                           regThinkStart,
-                          '<details class="thinking" open style="font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n'
+                          '<details class="thinking" open style="position: relative; overflow: hidden; font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n'
                         );
                         if (regThinkEnd.test(delta)) {
                           delta = delta.replace(regThinkEnd, '</details>\\n');
