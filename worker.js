@@ -2381,6 +2381,11 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         padding: 8px;
       }
       
+      .session-content.capturing details summary::marker {
+        list-style: disc !important;
+        list-style-type: disc !important;
+      }
+      
       .content-section {
         flex: 0 0 auto;
         position: relative;
@@ -3188,6 +3193,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             <div
               v-if="currentSession && currentSession.messages && currentSession.messages.length > 0"
               class="session-content"
+              :class="{capturing: isCapturing}"
             >
               <!-- 角色设定显示 -->
               <div
@@ -6377,7 +6383,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                           // 如果还未进入思考模式，添加开始标签
                           if (!isInThinking) {
                             this.streamingContent +=
-                              '<details class="thinking" open style="font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n';
+                              '<details class="thinking" open style="position: relative; overflow: hidden; font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n';
                             isInThinking = true;
                           }
                           this.streamingContent += reasoningDelta;
@@ -6401,15 +6407,26 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                         }
                         var regThinkStart = new RegExp('<think>');
                         var regThinkEnd = new RegExp('</think>');
-                        delta = delta
-                          .replace(
-                            regThinkStart,
-                            '<blockquote style="font-size: 0.75em">'
-                          )
-                          .replace(regThinkEnd, '</blockquote>\\n');
+                        var shouldFoldThinking = false;
+                        delta = delta.replace(
+                          regThinkStart,
+                          '<details class="thinking" open style="position: relative; overflow: hidden; font-size: 0.75em">\\n<summary>思考内容</summary>\\n\\n'
+                        );
+                        if (regThinkEnd.test(delta)) {
+                          delta = delta.replace(regThinkEnd, '</details>\\n');
+                          shouldFoldThinking = true;
+                        }
+
                         if (delta) {
                           var shouldScroll = !this.streamingContent;
-                          this.streamingContent += delta;
+                          var content = delta;
+                          if (shouldFoldThinking) {
+                            content = content.replace(
+                              '<details class="thinking" open',
+                              '<details class="thinking"'
+                            );
+                          }
+                          this.streamingContent += content;
                           if (shouldScroll) {
                             this.scrollToBottom();
                           }

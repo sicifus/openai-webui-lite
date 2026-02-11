@@ -950,6 +950,11 @@ textarea::placeholder {
   padding: 8px;
 }
 
+.session-content.capturing details summary::marker {
+  list-style: disc !important;
+  list-style-type: disc !important;
+}
+
 .content-section {
   flex: 0 0 auto;
   position: relative;
