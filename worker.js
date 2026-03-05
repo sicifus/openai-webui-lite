@@ -710,13 +710,11 @@ ${truncatedAnswer}
     // 获取请求体
     let requestBody = null;
     if (!['GET', 'HEAD', 'OPTIONS'].includes(apiMethod)) {
-      requestBody = await request.text();
+      // 使用 arrayBuffer 而不是 text，保持二进制数据完整性
+      requestBody = await request.arrayBuffer();
       // 对于有内容的请求，设置 Content-Length
-      if (requestBody) {
-        forwardHeaders.set(
-          'Content-Length',
-          new TextEncoder().encode(requestBody).length.toString()
-        );
+      if (requestBody && requestBody.byteLength > 0) {
+        forwardHeaders.set('Content-Length', requestBody.byteLength.toString());
       }
     }
 
@@ -767,6 +765,18 @@ ${truncatedAnswer}
 
       // 移除 WWW-Authenticate 头，避免浏览器弹出原生认证框
       responseHeaders.delete('WWW-Authenticate');
+
+      // 对于二进制内容（gzip），确保 Content-Type 正确且禁用自动压缩
+      const contentType = responseHeaders.get('Content-Type');
+      if (
+        contentType &&
+        (contentType.includes('gzip') || contentType.includes('octet-stream'))
+      ) {
+        // 明确告知 Cloudflare 不要对二进制数据进行额外处理
+        responseHeaders.set('Cache-Control', 'no-transform');
+        // 确保 Content-Encoding 不被误设置
+        responseHeaders.delete('Content-Encoding');
+      }
 
       return new Response(webdavResponse.body, {
         status: webdavResponse.status,
@@ -1416,6 +1426,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
     <script src="https://unpkg.com/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
     <script src="https://unpkg.com/vue@3.5.22/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
     <script src="https://unpkg.com/sweetalert2@11.26.3/dist/sweetalert2.all.js"></script>
     <script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
     <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -2562,6 +2573,49 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         min-height: 1.5em;
       }
       
+      .streaming-answer > blockquote:first-child:has(a) {
+        font-size: 0.85em;
+      }
+      
+      /* WebDAV 状态指示灯 */
+      .webdav-status-indicator {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        gap: 6px;
+        z-index: 10;
+      }
+      
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      
+      .status-dot.downloading {
+        background-color: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+      }
+      
+      .status-dot.uploading {
+        background-color: #f59e0b;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+      }
+      
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(0.85);
+        }
+      }
+      
 </style>
     <script>
       var isWechat = new RegExp('wechat', 'i').test(window.navigator.userAgent);
@@ -2712,16 +2766,107 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
 
         // WebDAV 读取文件
         async webdavGet(filename) {
+          // 设置下载状态
+          if (window.app) window.app.isWebdavDownloading = true;
+
           var targetPath = this.webdavConfig.path + filename;
           var proxyUrl = this._buildProxyUrl(targetPath);
           var headers = this._buildProxyHeaders(this.webdavConfig);
+
+          // 对于 .gz 文件，添加明确的 Accept 头指示需要二进制数据
+          var filenameWithoutQuery = filename.split('?')[0];
+          if (filenameWithoutQuery.endsWith('.gz')) {
+            headers['Accept'] =
+              'application/gzip, application/octet-stream, */*';
+            headers['X-Binary-Response'] = 'true'; // 提示代理保持二进制数据完整性
+          }
+
           try {
             var response = await fetch(proxyUrl, {
               method: 'GET',
               headers: headers
             });
             if (response.status === 200) {
-              return await response.text();
+              // 如果是 .gz 文件，尝试解压
+              if (filenameWithoutQuery.endsWith('.gz')) {
+                try {
+                  // 读取为 arrayBuffer
+                  var arrayBuffer = await response.arrayBuffer();
+                  var compressed = new Uint8Array(arrayBuffer);
+
+                  console.log(
+                    '[WebDAV] 接收数据大小:',
+                    compressed.length,
+                    '前4字节:',
+                    Array.from(compressed.slice(0, 4))
+                      .map(b => '0x' + b.toString(16).padStart(2, '0'))
+                      .join(' ')
+                  );
+
+                  // 检查 gzip 魔数（0x1f 0x8b）
+                  if (
+                    compressed.length >= 2 &&
+                    compressed[0] === 0x1f &&
+                    compressed[1] === 0x8b
+                  ) {
+                    // 是 gzip 数据，尝试解压
+                    try {
+                      var decompressed = fflate.gunzipSync(compressed);
+                      var text = fflate.strFromU8(decompressed);
+                      console.log(
+                        '[WebDAV] 成功解压 gzip 数据:',
+                        compressed.length,
+                        '→',
+                        text.length,
+                        '字符'
+                      );
+                      return text;
+                    } catch (unzipError) {
+                      console.error(
+                        '[WebDAV] gzip 解压失败:',
+                        unzipError.message
+                      );
+                      return null;
+                    }
+                  } else {
+                    // 不是 gzip 数据，可能文件损坏或已被处理
+                    console.error(
+                      '[WebDAV] 数据不是有效的 gzip 格式，文件可能损坏'
+                    );
+                    // 尝试作为普通文本解码（可能已被某个中间层解压）
+                    try {
+                      var textDecoder = new TextDecoder('utf-8', {
+                        fatal: false
+                      });
+                      var text = textDecoder.decode(compressed);
+                      // 检查是否包含有效的 JSON 起始字符
+                      if (
+                        text.trimStart().startsWith('[') ||
+                        text.trimStart().startsWith('{')
+                      ) {
+                        console.log(
+                          '[WebDAV] 数据似乎已被自动解压，作为文本返回'
+                        );
+                        return text;
+                      } else {
+                        console.error('[WebDAV] 解码后不是有效的 JSON 文本');
+                        return null;
+                      }
+                    } catch (decodeError) {
+                      console.error(
+                        '[WebDAV] UTF-8 解码失败:',
+                        decodeError.message
+                      );
+                      return null;
+                    }
+                  }
+                } catch (e) {
+                  console.error('[WebDAV] 读取文件失败:', e.message);
+                  return null;
+                }
+              } else {
+                return await response.text();
+              }
             } else if (response.status === 404) {
               return null;
             } else {
@@ -2731,30 +2876,74 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           } catch (e) {
             console.error('WebDAV GET 错误:', e);
             return null;
+          } finally {
+            // 清除下载状态
+            if (window.app) window.app.isWebdavDownloading = false;
           }
         }
 
         // WebDAV 写入文件
         async webdavPut(filename, content) {
+          // 设置上传状态
+          if (window.app) window.app.isWebdavUploading = true;
+
           var targetPath = this.webdavConfig.path + filename;
           var proxyUrl = this._buildProxyUrl(targetPath);
+          var body = content;
+          var contentType = 'application/json';
+
+          // 如果是 .gz 文件，压缩后传输
+          if (filename.endsWith('.gz')) {
+            try {
+              var uint8Array = fflate.strToU8(content);
+              var compressed = fflate.gzipSync(uint8Array, { level: 6 });
+
+              console.log(
+                '[WebDAV] 压缩数据:',
+                uint8Array.length,
+                '→',
+                compressed.length,
+                '字节，压缩率:',
+                ((1 - compressed.length / uint8Array.length) * 100).toFixed(1) +
+                  '%',
+                '前4字节:',
+                Array.from(compressed.slice(0, 4))
+                  .map(b => '0x' + b.toString(16).padStart(2, '0'))
+                  .join(' ')
+              );
+
+              // 确保作为 Blob 上传，保持二进制数据完整性
+              body = new Blob([compressed], { type: 'application/gzip' });
+              contentType = 'application/gzip';
+            } catch (e) {
+              console.error('WebDAV 压缩失败:', e);
+              return false;
+            }
+          }
+
           var headers = this._buildProxyHeaders(this.webdavConfig, {
-            'Content-Type': 'application/json'
+            'Content-Type': contentType
           });
           try {
             var response = await fetch(proxyUrl, {
               method: 'PUT',
               headers: headers,
-              body: content
+              body: body
             });
-            return (
+            var success =
               response.status === 200 ||
               response.status === 201 ||
-              response.status === 204
-            );
+              response.status === 204;
+            if (success && filename.endsWith('.gz')) {
+              console.log('[WebDAV] gzip 文件上传成功');
+            }
+            return success;
           } catch (e) {
             console.error('WebDAV PUT 错误:', e);
             return false;
+          } finally {
+            // 清除上传状态
+            if (window.app) window.app.isWebdavUploading = false;
           }
         }
 
@@ -2766,9 +2955,9 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
           }
           this._webdavSyncTimer = setTimeout(async () => {
             if (this._pendingWebdavData) {
-              console.log('[WebDAV] 同步数据到远程...');
+              console.log('[WebDAV] 同步数据到远程（压缩）...');
               var success = await this.webdavPut(
-                'sessions.json',
+                'sessions.json.gz',
                 this._pendingWebdavData
               );
               if (!success) {
@@ -2789,8 +2978,8 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
             this._webdavSyncTimer = null;
           }
           if (this._pendingWebdavData && this.webdavEnabled) {
-            console.log('[WebDAV] 立即同步数据...');
-            await this.webdavPut('sessions.json', this._pendingWebdavData);
+            console.log('[WebDAV] 立即同步数据（压缩）...');
+            await this.webdavPut('sessions.json.gz', this._pendingWebdavData);
             this._pendingWebdavData = null;
           }
         }
@@ -2845,16 +3034,15 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               // 120秒内的缓存有效
               const timestamp = Math.floor(Date.now() / 1000 / 120);
               var remoteData = await this.webdavGet(
-                'sessions.json?v=' + timestamp
+                'sessions.json.gz?v=' + timestamp
               );
               if (remoteData !== null) {
-                if (window.app) {
-                  window.app.showToast('远程数据已加载', 'success');
-                }
                 return remoteData;
               }
               // 如果远程没有数据，回退到本地
               console.log('WebDAV无数据，尝试从本地读取');
+              if (window.app)
+                window.app.showToast('WebDAV无数据，尝试从本地读取', 'error');
             } finally {
               if (window.app) window.app.isLoadingRemoteSessions = false;
             }
@@ -3113,6 +3301,19 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
         <div class="main-chat" v-show="true" v-cloak style="display: none">
           <!-- 头部 -->
           <div class="header">
+            <!-- WebDAV 状态指示灯 -->
+            <div class="webdav-status-indicator">
+              <span
+                v-if="isWebdavDownloading"
+                class="status-dot downloading"
+                title="正在从 WebDAV 下载"
+              ></span>
+              <span
+                v-if="isWebdavUploading"
+                class="status-dot uploading"
+                title="正在上传到 WebDAV"
+              ></span>
+            </div>
             <h2 style="cursor: pointer">
               <div class="brand" @click="showAbout">
                 <img
@@ -3651,7 +3852,12 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
       <div ref="aboutTemplate" style="display: none">
         <div style="max-height: 70vh; overflow-y: auto; text-align: left">
           <div style="text-align: left; padding: 10px">
-            <h3 style="margin: 0 0 10px; color: #333">✨ 应用简介</h3>
+            <h3
+              style="margin: 0 0 10px; color: #333"
+              ondblclick="location.reload()"
+            >
+              ✨ 应用简介
+            </h3>
             <p style="line-height: 1.6; color: #666">
               这是一个简单易用的 OpenAI API 代理服务，基于 Deno Deploy /
               Cloudflare Workers 部署。 只需要一个域名和 OpenAI API
@@ -3983,7 +4189,10 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
               username: '',
               password: '',
               path: '/openai-chat/'
-            }
+            },
+            // WebDAV 状态指示
+            isWebdavUploading: false,
+            isWebdavDownloading: false
           };
         },
         computed: {
@@ -6284,7 +6493,7 @@ function getHtmlContent(modelIds, tavilyKeys, title) {
                     '3.  **深度解析 (Deep Dive)** (视情况而定)\\n' +
                     '    *   解释背后的原因、背景或具体数据支撑。\\n' +
                     '4.  **来源列表 (References)**\\n' +
-                    '    *   列出你实际引用的参考链接(应当是包含真实url、可通过点击跳转的Markdown超链接，例如：1. [](https://en.wikipedia.org/wiki/DeepSeek) )。\\n\\n' +
+                    '    *   列出你实际引用的参考链接(应当是包含真实url、可通过点击跳转的Markdown超链接，例如：1. [DeepSeek - Wikipedia](https://en.wikipedia.org/wiki/DeepSeek) )。\\n\\n' +
                     '---\\n\\n' +
                     '## 用户问题 (User Question)\\n' +
                     '<User_Question>\\n' +
