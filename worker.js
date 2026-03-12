@@ -370,7 +370,8 @@ async function handleRequest(request, env = {}) {
           role: 'user',
           content: modelPrompt.trim()
         }
-      ]
+      ],
+      stream: false
     };
     let modelResponse;
     try {
@@ -614,7 +615,8 @@ ${truncatedAnswer}
     const modelPayload = {
       model: summaryModel,
       messages: messages,
-      max_tokens: 300
+      max_tokens: 300,
+      stream: false
     };
 
     try {
