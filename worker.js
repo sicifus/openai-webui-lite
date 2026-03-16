@@ -944,7 +944,6 @@ function getLiteModelId(modelIds) {
     .map(i => i.split('=')[0].trim())
     .filter(i => i);
   const parts = [
-    'gh/gpt-5-mini',
     'deepseek-v',
     'qwen3-next',
     '-oss-',
@@ -1033,7 +1032,9 @@ function getTavilyPrompt(query) {
 
 请严格按照 JSON 格式输出，包含以下字段：
 
-### 1. \`search_queries\` (Array[String])
+### 1. \`refined_question\` (String)
+改写后的专业化问题（经过语义理解，识别用户口语化表达背后的标准术语）
+### 2. \`search_queries\` (Array[String])
 *   **策略**：
     *   **简单事实**：1-2个关键词（精准打击）。
     *   **深度探索**：3-5个关键词（最大化覆盖）。针对复杂问题，必须填满5个槽位，分别对应不同维度（如：现状、原因、影响、数据、反面观点）。
@@ -1041,10 +1042,12 @@ function getTavilyPrompt(query) {
     *   关键词必须精炼（去停用词）。
     *   如果混合语言，请将高质量源语言放在数组前面。
 
-### 2. \`num_results\` (Integer)
+### 3. \`num_results\` (Integer)
 控制每个关键词返回的条目数，平衡总信息量：
 *   **1-2 个关键词**：设为 \`10\`（需要更多单一维度的细节）。
 *   **3-5 个关键词**：设为 \`5\` 到 \`8\`（总条目数 即 search_queries.length * num_results，应控制在40以内，防止注意力分散，强迫提取精华）。
+### 4. \`reasoning\` (String)
+为什么选择这些关键词的简短说明
 
 ---
 
@@ -1055,30 +1058,34 @@ function getTavilyPrompt(query) {
 **Reasoning**: 这是一个复杂的国际科技事件，需要事实、评论和幕后分析。
 \`\`\`json
 {
+  "refined_question": "Sam Altman在2023年11月被OpenAI董事会解雇后又迅速回归的完整事件时间线、董事会决策原因及Microsoft介入角色分析",
   "search_queries": [
     "Sam Altman OpenAI firing rejoining timeline November 2023",
     "reason behind Sam Altman firing OpenAI board conflict",
     "Ilya Sutskever Helen Toner OpenAI board statement",
     "Microsoft role in Sam Altman return to OpenAI",
-    "OpenAI 董事会改组 2023 分析" 
+    "OpenAI 董事会改组 2023 分析"
   ],
-  "num_results": 7
+  "num_results": 7,
+  "reasoning": "复杂国际科技事件，需要覆盖时间线、董事会冲突原因、关键人物声明、Microsoft角色和中文深度分析五个维度"
 }
 \`\`\`
 
 ### Case B: 广泛行业调研 (Chinese Mixed)
-**Input**: "2024年中国新能源汽车出海面临的关税壁垒和对策"
+**Input**: "2025年中国新能源汽车出海面临的关税壁垒和对策"
 **Reasoning**: 涉及中国企业（中）和国际政策（英）。
 \`\`\`json
 {
+  "refined_question": "2025年中国新能源汽车企业在欧美及新兴市场面临的关税政策壁垒、出口数据现状及应对策略分析",
   "search_queries": [
-    "EU tariffs on Chinese EV 2024 details",
+    "EU tariffs on Chinese EV 2025 details",
     "US inflation reduction act Chinese EV exclusion",
-    "2024中国新能源汽车出口数据 BYD 蔚来",
+    "2025中国新能源汽车出口数据 BYD 蔚来",
     "Chinese EV companies strategy against tariffs Europe",
     "土耳其 巴西 对华电动车 关税政策"
   ],
-  "num_results": 6
+  "num_results": 6,
+  "reasoning": "涉及欧美政策（英文源）、中国企业数据（中文源）和新兴市场动态，需要多语言多维度覆盖"
 }
 \`\`\`
 
@@ -1086,10 +1093,12 @@ function getTavilyPrompt(query) {
 **Input**: "特斯拉昨晚股价跌了多少？"
 \`\`\`json
 {
+  "refined_question": "特斯拉最近一个交易日的股价变动幅度及原因",
   "search_queries": [
     "Tesla stock price change last session reasoning"
   ],
-  "num_results": 10
+  "num_results": 10,
+  "reasoning": "简单事实查询，单一关键词精准打击，增加条目数获取更多细节"
 }
 \`\`\`
 
@@ -1097,8 +1106,10 @@ function getTavilyPrompt(query) {
 **Input**: "把下面的Python代码改成Java"
 \`\`\`json
 {
+  "refined_question": "将提供的Python代码转换为等效的Java实现",
   "search_queries": [],
-  "num_results": 0
+  "num_results": 0,
+  "reasoning": "代码转换任务，无需外部信息检索"
 }
 \`\`\`
 
